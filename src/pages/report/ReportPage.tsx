@@ -15,10 +15,7 @@ export default function ReportPage() {
       <h1 className="text-xl font-bold">기록 분석</h1>
 
       {/* 주간/월간 탭 */}
-      <div
-        className="mt-4 flex rounded-xl p-1"
-        style={{ background: 'var(--color-surface-2)' }}
-      >
+      <div className="mt-4 flex rounded-xl p-1" style={{ background: 'var(--color-surface-2)' }}>
         {(['weekly', 'monthly'] as Tab[]).map((t) => (
           <button
             key={t}
@@ -47,7 +44,9 @@ export default function ReportPage() {
         <p className="text-xs" style={{ color: 'var(--color-ink-faint)' }}>
           재계획 요약
         </p>
-        <p className="mt-1 text-sm">이번 {tab === 'weekly' ? '주' : '달'} 3회 · 퇴근 지연 2 · 회식 1</p>
+        <p className="mt-1 text-sm">
+          이번 {tab === 'weekly' ? '주' : '달'} 3회 · 퇴근 지연 2 · 회식 1
+        </p>
       </div>
 
       {/* 날짜 리스트 → 일별 상세 (구현 예정) */}

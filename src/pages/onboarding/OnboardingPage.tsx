@@ -29,11 +29,7 @@ export default function OnboardingPage() {
       </p>
 
       <ol className="mt-8 space-y-3">
-        {[
-          '개인화 데이터 입력',
-          '근무표 등록 (사진)',
-          'AI 분석 결과 확인·보정',
-        ].map((step, i) => (
+        {['개인화 데이터 입력', '근무표 등록 (사진)', 'AI 분석 결과 확인·보정'].map((step, i) => (
           <li
             key={step}
             className="flex items-center gap-3 rounded-2xl border px-4 py-3.5"

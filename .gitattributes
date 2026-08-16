@@ -1,0 +1,12 @@
+# 줄바꿈을 OS 무관하게 통일 (Windows/Mac 혼용 시 diff 오염 방지)
+# 저장소에는 항상 LF로 저장, 체크아웃 시 각 파일 특성에 맞게 처리
+* text=auto eol=lf
+
+# 바이너리는 변환하지 않음
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

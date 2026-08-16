@@ -30,10 +30,7 @@ export default function MainPage() {
             오늘의 모드
           </p>
           <div className="mt-1.5 flex items-center gap-2">
-            <span
-              className="h-3 w-3 rounded-full"
-              style={{ background: mode.colorVar }}
-            />
+            <span className="h-3 w-3 rounded-full" style={{ background: mode.colorVar }} />
             <h1 className="text-2xl font-bold">{mode.label}</h1>
           </div>
         </div>

@@ -14,7 +14,8 @@ export default defineConfig({
       manifest: {
         name: '시차 — 교대근무 생활 리듬',
         short_name: '시차',
-        description: '근무표를 읽어 오늘의 수면·식사 리듬을 설계하고, 계획이 바뀌면 다시 조정합니다.',
+        description:
+          '근무표를 읽어 오늘의 수면·식사 리듬을 설계하고, 계획이 바뀌면 다시 조정합니다.',
         theme_color: '#0b1020',
         background_color: '#0b1020',
         display: 'standalone',

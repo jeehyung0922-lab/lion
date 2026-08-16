@@ -36,13 +36,7 @@ export interface ScheduleDay {
 
 /** 루틴 항목 (오늘의 루틴 목록 한 줄) */
 export type RoutineItemKind =
-  | 'MAIN_SLEEP'
-  | 'WAKE'
-  | 'MAIN_MEAL'
-  | 'CAFFEINE_CUTOFF'
-  | 'BIG_MEAL_CUTOFF'
-  | 'CLOCK_IN'
-  | 'NAP'
+  'MAIN_SLEEP' | 'WAKE' | 'MAIN_MEAL' | 'CAFFEINE_CUTOFF' | 'BIG_MEAL_CUTOFF' | 'CLOCK_IN' | 'NAP'
 
 export interface RoutineItem {
   kind: RoutineItemKind

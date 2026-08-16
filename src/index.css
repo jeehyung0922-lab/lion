@@ -44,7 +44,13 @@ body {
   margin: 0;
   background: var(--color-bg);
   color: var(--color-ink);
-  font-family: 'Pretendard', system-ui, -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif;
+  font-family:
+    'Pretendard',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'Malgun Gothic',
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   /* 모바일 안전영역 대응 */
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);

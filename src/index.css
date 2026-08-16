@@ -1,7 +1,10 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
 
 /*
-  시차 디자인 토큰
+  시차 커스텀 디자인 토큰 (직접 만든 UI용)
   - 다크 테마 기본. "시차/밤을 건너는" 몸 상태의 은유 (여행 이미지 배제).
   - 모드별 라벨 색상 7종.
 */
@@ -34,6 +37,65 @@
   --radius-card: 18px;
 }
 
+/*
+  shadcn/ui 토큰 — 앱이 항상 다크이므로 :root에 다크 값을 직접 정의.
+  시차 팔레트에 맞춰 매핑.
+*/
+:root {
+  --radius: 0.75rem;
+  --background: #0b1020;
+  --foreground: #eef2ff;
+  --card: #131a2e;
+  --card-foreground: #eef2ff;
+  --popover: #131a2e;
+  --popover-foreground: #eef2ff;
+  --primary: #6ea8ff;
+  --primary-foreground: #0b1020;
+  --secondary: #1b2440;
+  --secondary-foreground: #eef2ff;
+  --muted: #1b2440;
+  --muted-foreground: #9aa6c7;
+  --accent: #1b2440;
+  --accent-foreground: #eef2ff;
+  --destructive: #ff6b6b;
+  --border: #2a3450;
+  --input: #2a3450;
+  --ring: #6ea8ff;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
 html,
 body,
 #root {
@@ -42,8 +104,6 @@ body,
 
 body {
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-ink);
   font-family:
     'Pretendard',
     system-ui,
@@ -55,5 +115,3 @@ body {
   /* 모바일 안전영역 대응 */
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
 }
-
-/* 모바일 우선: 앱 셸을 세로 중앙 정렬된 좁은 폭으로 */

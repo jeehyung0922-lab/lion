@@ -28,11 +28,11 @@ npm run lint     # oxlint
 src/
   components/layout/   AppLayout(앱 셸) · GNB(하단 탭)
   pages/
-    onboarding/        온보딩          (담당: 일하)
-    main/              메인페이지       (담당: 일하)
-    report/            기록 분석 리포트  (담당: 채원)
-    collectbook/       콜렉트북         (담당: 지형, 플레이스홀더)
-    mypage/            마이페이지       (담당: 한솔+@, 플레이스홀더)
+    onboarding/        온보딩
+    main/              메인페이지
+    report/            기록 분석 리포트
+    collectbook/       콜렉트북
+    mypage/            마이페이지
   constants/modes.ts   7가지 모드 UI 메타데이터
   types/index.ts       도메인 타입 (RoutineResult, ModeKey, TimezoneZone 등)
 ```

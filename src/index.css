@@ -1,0 +1,53 @@
+@import 'tailwindcss';
+
+/*
+  시차 디자인 토큰
+  - 다크 테마 기본. "시차/밤을 건너는" 몸 상태의 은유 (여행 이미지 배제).
+  - 모드별 라벨 색상 7종.
+*/
+@theme {
+  /* 표면 */
+  --color-bg: #0b1020;
+  --color-surface: #131a2e;
+  --color-surface-2: #1b2440;
+  --color-border: #2a3450;
+
+  /* 텍스트 */
+  --color-ink: #eef2ff;
+  --color-ink-muted: #9aa6c7;
+  --color-ink-faint: #64708f;
+
+  /* 강조 (시차 = 시간대를 건너는 궤적) */
+  --color-accent: #6ea8ff;
+  --color-accent-soft: #2b3d63;
+
+  /* 모드 라벨 색상 (7종) */
+  --color-mode-day: #f4b942;
+  --color-mode-evening: #f0703c;
+  --color-mode-night: #5b6cff;
+  --color-mode-shift: #b06cff;
+  --color-mode-maintain: #3fb6a8;
+  --color-mode-shift-off: #ff8fb0;
+  --color-mode-recovery: #56c46b;
+
+  /* 반경 */
+  --radius-card: 18px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: 'Pretendard', system-ui, -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* 모바일 안전영역 대응 */
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+
+/* 모바일 우선: 앱 셸을 세로 중앙 정렬된 좁은 폭으로 */

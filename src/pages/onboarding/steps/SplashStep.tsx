@@ -16,9 +16,9 @@ export function SplashStep({ onNext }: { onNext: () => void }) {
       }
     >
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <h1 className="text-5xl font-bold tracking-tight">시차</h1>
+        <h1 className="text-6xl font-bold tracking-tight text-white">시차</h1>
         {/* TODO: 서브카피 확정 시 교체 (디자인 시안 미정) */}
-        <p className="mt-3 text-sm text-white/70">매주 건너는 시차를, 함께 설계해요</p>
+        <p className="mt-3 text-sm text-[#d9d9d9]">매주 건너는 시차를, 함께 설계해요</p>
       </div>
     </StepShell>
   )

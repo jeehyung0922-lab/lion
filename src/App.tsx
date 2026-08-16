@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { MobileFrame } from './components/layout/MobileFrame'
 import AppLayout from './components/layout/AppLayout'
 import OnboardingPage from './pages/onboarding/OnboardingPage'
 import MainPage from './pages/main/MainPage'
@@ -15,21 +16,23 @@ function RequireOnboarding({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/onboarding" element={<OnboardingPage />} />
-      <Route
-        element={
-          <RequireOnboarding>
-            <AppLayout />
-          </RequireOnboarding>
-        }
-      >
-        <Route path="/" element={<MainPage />} />
-        <Route path="/report" element={<ReportPage />} />
-        <Route path="/collectbook" element={<CollectbookPage />} />
-        <Route path="/mypage" element={<MyPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <MobileFrame>
+      <Routes>
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route
+          element={
+            <RequireOnboarding>
+              <AppLayout />
+            </RequireOnboarding>
+          }
+        >
+          <Route path="/" element={<MainPage />} />
+          <Route path="/report" element={<ReportPage />} />
+          <Route path="/collectbook" element={<CollectbookPage />} />
+          <Route path="/mypage" element={<MyPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </MobileFrame>
   )
 }

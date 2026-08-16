@@ -1,42 +1,41 @@
 import { NavLink } from 'react-router-dom'
+import { Home, ClipboardList, BookMarked, User } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 interface Tab {
   to: string
   label: string
-  icon: string // 여행 이미지 배제 원칙 — 추상 아이콘만 사용
+  Icon: LucideIcon
 }
 
 const TABS: Tab[] = [
-  { to: '/', label: '오늘', icon: '◐' },
-  { to: '/report', label: '기록', icon: '≣' },
-  { to: '/collectbook', label: '콜렉트북', icon: '◇' },
-  { to: '/mypage', label: '내 정보', icon: '○' },
+  { to: '/home', label: '오늘', Icon: Home },
+  { to: '/report', label: '기록', Icon: ClipboardList },
+  { to: '/collectbook', label: '콜렉트북', Icon: BookMarked },
+  { to: '/mypage', label: '내 정보', Icon: User },
 ]
 
+/** 하단 플로팅 알약형 GNB (아이콘). 콘텐츠 위에 떠 있음. */
 export default function GNB() {
   return (
-    <nav
-      className="sticky bottom-0 z-20 flex border-t"
-      style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-    >
-      {TABS.map((tab) => (
-        <NavLink
-          key={tab.to}
-          to={tab.to}
-          end={tab.to === '/'}
-          className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px]"
-        >
-          {({ isActive }) => (
-            <span
-              className="flex flex-col items-center gap-1 transition-colors"
-              style={{ color: isActive ? 'var(--color-accent)' : 'var(--color-ink-faint)' }}
-            >
-              <span className="text-lg leading-none">{tab.icon}</span>
-              {tab.label}
-            </span>
-          )}
-        </NavLink>
-      ))}
+    <nav className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center pb-6">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-[#111111]/40 px-2 py-1.5 shadow-lg backdrop-blur-md">
+        {TABS.map(({ to, label, Icon }) => (
+          <NavLink key={to} to={to} aria-label={label}>
+            {({ isActive }) => (
+              <span
+                className="flex size-11 items-center justify-center rounded-full transition-colors"
+                style={{
+                  color: isActive ? 'var(--color-brand)' : 'var(--color-ink-faint)',
+                  background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+                }}
+              >
+                <Icon className="size-5" strokeWidth={2} />
+              </span>
+            )}
+          </NavLink>
+        ))}
+      </div>
     </nav>
   )
 }

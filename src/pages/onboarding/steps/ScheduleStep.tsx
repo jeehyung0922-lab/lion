@@ -32,17 +32,26 @@ export function ScheduleStep({ onRegistered }: ScheduleStepProps) {
       gradient={uploaded ? STEP_GRADIENTS.scheduleUploaded : STEP_GRADIENTS.scheduleIntro}
       footer={
         uploaded ? (
-          <Button
-            onClick={() => onRegistered(preview!)}
-            className="h-12 w-full rounded-2xl text-base font-semibold"
-          >
-            근무표 등록하기
-          </Button>
+          <div className="space-y-2">
+            <Button
+              onClick={() => onRegistered(preview!)}
+              className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15"
+            >
+              근무표 등록하기
+            </Button>
+            {/* 실수로 다른 근무표를 올린 경우 다시 선택 */}
+            <Button
+              onClick={pickFile}
+              variant="ghost"
+              className="h-11 w-full rounded-2xl text-sm font-normal text-white/75 hover:bg-transparent hover:font-bold hover:text-white"
+            >
+              근무표 다시 불러오기
+            </Button>
+          </div>
         ) : (
           <Button
             onClick={pickFile}
-            variant="outline"
-            className="h-12 w-full rounded-2xl border-white/30 bg-white/5 text-base font-semibold backdrop-blur-sm"
+            className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15"
           >
             근무표 불러오기
           </Button>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 const ITEM_H = 40 // 각 항목 높이(px)
@@ -13,18 +13,19 @@ interface WheelColumnProps {
   suffix?: string
 }
 
-/** iOS식 스크롤 스냅 휠 (한 컬럼) */
+/** iOS식 스크롤 스냅 휠 (유한 범위, 하드 스톱 — 순환 없음) */
 function WheelColumn({ values, value, onChange, format, suffix }: WheelColumnProps) {
   const ref = useRef<HTMLDivElement>(null)
   const raf = useRef<number>(0)
 
-  // 외부 value → 스크롤 위치 동기화 (초기/변경 시)
-  useEffect(() => {
+  // 마운트 시(시트 열릴 때) 현재 값 위치로 스크롤 — 페인트 전 동기 설정
+  useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
     const idx = Math.max(0, values.indexOf(value))
     el.scrollTop = idx * ITEM_H
-  }, [value, values])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function handleScroll() {
     const el = ref.current
@@ -43,7 +44,7 @@ function WheelColumn({ values, value, onChange, format, suffix }: WheelColumnPro
       <div
         ref={ref}
         onScroll={handleScroll}
-        className="h-full snap-y snap-mandatory overflow-y-scroll scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-full snap-y snap-mandatory overflow-y-scroll [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{ paddingTop: PAD, paddingBottom: PAD }}
       >
         {values.map((v) => (
@@ -70,11 +71,11 @@ interface DurationWheelProps {
   onChange: (min: number) => void
 }
 
-/** 시간/분(15분 단위) 2컬럼 휠 — 준비/통근 같은 "소요 시간" 선택용 */
+/** 시간/분(15분 단위) 2컬럼 휠 — 준비/통근 같은 "소요 시간" 선택용 (시 0~12, 하드 스톱) */
 export function DurationWheel({ value, onChange }: DurationWheelProps) {
   const hours = Math.floor(value / 60)
   const minutes = value % 60
-  const hourValues = [0, 1, 2, 3, 4, 5, 6]
+  const hourValues = Array.from({ length: 13 }, (_, i) => i) // 0~12시간
   const minuteValues = [0, 15, 30, 45]
 
   return (

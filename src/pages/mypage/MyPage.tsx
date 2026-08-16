@@ -5,7 +5,9 @@ export default function MyPage() {
   const navigate = useNavigate()
 
   function restart() {
+    // '새로 시작하기': 온보딩 초기화 후 재진입
     localStorage.removeItem('kinglion.onboarded')
+    localStorage.removeItem('kinglion.profile')
     navigate('/onboarding', { replace: true })
   }
 

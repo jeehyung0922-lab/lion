@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { cn } from '@/lib/utils'
 import type { ScheduleDay, ShiftType } from '@/types'
 import { StepShell, STEP_GRADIENTS } from '../components/StepShell'
 import { MonthCalendar } from '../components/MonthCalendar'
-import { MOCK_SCHEDULE, MOCK_SHIFT_TYPES, type ShiftTypeInfo } from '../onboardingData'
+import {
+  MOCK_SCHEDULE,
+  MOCK_SHIFT_TYPES,
+  SHIFT_COLORS,
+  type ShiftTypeInfo,
+} from '../onboardingData'
 
 const SHIFT_ORDER: ShiftType[] = ['DAY', 'EVENING', 'NIGHT', 'OFF']
 const SHIFT_LABEL: Record<ShiftType, string> = {
@@ -24,6 +28,14 @@ export function AiResultStep({ onConfirm }: { onConfirm: () => void }) {
   const [schedule, setSchedule] = useState<ScheduleDay[]>(MOCK_SCHEDULE)
   const [editType, setEditType] = useState<ShiftTypeInfo | null>(null)
   const [editDay, setEditDay] = useState<ScheduleDay | null>(null)
+
+  // 근무표가 걸친 달 목록 (YYYY-MM). 화살표로 이동.
+  const months = useMemo(
+    () => [...new Set(schedule.map((d) => d.date.slice(0, 7)))].sort(),
+    [schedule],
+  )
+  const [viewIdx, setViewIdx] = useState(0)
+  const [viewYear, viewMonth] = months[Math.min(viewIdx, months.length - 1)].split('-').map(Number)
 
   function saveType(next: ShiftTypeInfo) {
     setShiftTypes((prev) => prev.map((t) => (t.shift === next.shift ? next : t)))
@@ -44,7 +56,10 @@ export function AiResultStep({ onConfirm }: { onConfirm: () => void }) {
     <StepShell
       gradient={STEP_GRADIENTS.aiResult}
       footer={
-        <Button onClick={onConfirm} className="h-12 w-full rounded-2xl text-base font-semibold">
+        <Button
+          onClick={onConfirm}
+          className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15"
+        >
           이 근무표로 나만의 리듬 생성하기
         </Button>
       }
@@ -55,37 +70,49 @@ export function AiResultStep({ onConfirm }: { onConfirm: () => void }) {
         수정이 필요한 부분을 클릭해 수정해주세요.
       </p>
 
-      {/* 교대유형 카드 */}
+      {/* 교대유형 카드 (DAY=초록 #ABFF24, NIGHT=파랑 #1000F7) */}
       <div className="mb-4 grid grid-cols-2 gap-3">
-        {shiftTypes.map((t) => (
-          <button
-            key={t.shift}
-            type="button"
-            onClick={() => setEditType(t)}
-            className={cn(
-              'flex flex-col gap-2 rounded-2xl border p-4 text-left backdrop-blur-sm transition-colors',
-              t.shift === 'DAY'
-                ? 'border-[color:var(--color-mode-day)]/40 bg-[color:var(--color-mode-day)]/10'
-                : 'border-[color:var(--color-mode-night)]/40 bg-[color:var(--color-mode-night)]/10',
-            )}
-          >
-            <span className="flex items-center gap-1.5 text-sm font-semibold">
-              {t.shift === 'DAY' ? (
-                <Sun className="size-4" style={{ color: 'var(--color-mode-day)' }} />
-              ) : (
-                <Moon className="size-4" style={{ color: 'var(--color-mode-night)' }} />
-              )}
-              {t.shift === 'DAY' ? 'DAY(주간)' : 'NIGHT(야간)'}
-            </span>
-            <span className="text-xs tabular-nums text-white/70">
-              {t.startTime} - {t.endTime}
-            </span>
-          </button>
-        ))}
+        {shiftTypes.map((t) => {
+          const isDay = t.shift === 'DAY'
+          const accent = isDay ? SHIFT_COLORS.DAY : SHIFT_COLORS.NIGHT
+          // 불투명 배경 — 뒤 그라데이션 글로우의 영향을 받지 않도록
+          const bg = isDay ? '#3a6018' : '#23345c'
+          const color = accent
+          return (
+            <button
+              key={t.shift}
+              type="button"
+              onClick={() => setEditType(t)}
+              className="flex flex-col gap-2 rounded-2xl border p-4 text-left transition-colors"
+              style={{ borderColor: `${accent}66`, backgroundColor: bg }}
+            >
+              <span className="flex items-center gap-1.5 text-sm font-semibold">
+                {t.shift === 'DAY' ? (
+                  <Sun className="size-4" style={{ color }} />
+                ) : (
+                  <Moon className="size-4" style={{ color }} />
+                )}
+                {t.shift === 'DAY' ? 'DAY(주간)' : 'NIGHT(야간)'}
+              </span>
+              <span className="text-xs tabular-nums text-white/70">
+                {t.startTime} - {t.endTime}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
-      {/* 월간 달력 */}
-      <MonthCalendar year={2026} month={8} schedule={schedule} onSelectDay={setEditDay} />
+      {/* 월간 달력 (근무표가 걸친 달을 화살표로 이동) */}
+      <MonthCalendar
+        year={viewYear}
+        month={viewMonth}
+        schedule={schedule}
+        onSelectDay={setEditDay}
+        onPrev={() => setViewIdx((i) => Math.max(0, i - 1))}
+        onNext={() => setViewIdx((i) => Math.min(months.length - 1, i + 1))}
+        canPrev={viewIdx > 0}
+        canNext={viewIdx < months.length - 1}
+      />
 
       {/* 교대유형 시각 수정 드로어 */}
       <ShiftTypeEditor value={editType} onSave={saveType} onClose={() => setEditType(null)} />
@@ -100,8 +127,13 @@ export function AiResultStep({ onConfirm }: { onConfirm: () => void }) {
             {SHIFT_ORDER.map((s) => (
               <Button
                 key={s}
-                variant={editDay?.shift === s ? 'default' : 'secondary'}
+                variant="secondary"
                 onClick={() => editDay && setDayShift(editDay.date, s)}
+                className={
+                  editDay?.shift === s
+                    ? 'border border-white/30 bg-white/15 text-white hover:bg-white/20'
+                    : ''
+                }
               >
                 {SHIFT_LABEL[s]}
               </Button>
@@ -164,6 +196,7 @@ function ShiftTypeEditor({
             onClick={() => {
               if (value) onSave({ ...value, startTime: start, endTime: end })
             }}
+            className="border border-white/20 bg-white/10 text-white backdrop-blur-sm hover:bg-white/15"
           >
             확인
           </Button>

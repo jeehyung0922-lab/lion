@@ -25,8 +25,11 @@ export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) 
     <StepShell
       gradient={STEP_GRADIENTS.personalize}
       footer={
-        <Button onClick={onNext} className="h-12 w-full rounded-2xl text-base font-semibold">
-          다음
+        <Button
+          onClick={onNext}
+          className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15"
+        >
+          이 근무표로 나만의 리듬 생성하기
         </Button>
       }
     >
@@ -48,10 +51,10 @@ export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) 
         </div>
 
         {/* 목표 수면 시간 — 슬라이더 */}
-        <div className="rounded-2xl border border-border bg-card/60 px-4 py-4 backdrop-blur-sm">
+        <div className="rounded-lg border border-white/10 bg-[#111111]/30 px-4 py-4 backdrop-blur-md">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">목표 수면 시간</span>
-            <span className="text-base font-semibold">
+            <span className="text-xs text-[#888888]">목표 수면 시간</span>
+            <span className="text-[17px] font-normal tracking-[-0.05em] text-white">
               {formatDuration(form.targetSleepMinutes)}
             </span>
           </div>
@@ -65,9 +68,9 @@ export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) 
         </div>
 
         {/* 근무 중 휴식 가능 여부 — Yes/No */}
-        <div className="rounded-2xl border border-border bg-card/60 px-4 py-3.5 backdrop-blur-sm">
+        <div className="rounded-lg border border-white/10 bg-[#111111]/30 px-4 py-3.5 backdrop-blur-md">
           <div className="flex items-center justify-between">
-            <span className="text-sm">근무 중 휴식 가능 여부</span>
+            <span className="text-sm text-white">근무 중 휴식 가능 여부</span>
             <YesNo
               value={form.canRestDuringShift}
               onChange={(v) => update({ canRestDuringShift: v })}
@@ -78,22 +81,29 @@ export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) 
               value={form.restWindow}
               onChange={(e) => update({ restWindow: e.target.value })}
               placeholder="휴식 가능 시간 (예: 02:00~03:00)"
-              className="mt-3"
+              className="mt-3 border-white/10 bg-black/20 text-white placeholder:text-[#888888] focus-visible:border-white/25 focus-visible:ring-white/10"
             />
           )}
         </div>
-
-        {/* 휴무 시 리듬 선호경향 — 3단계 (기능 명세 필드) */}
-        <div className="rounded-2xl border border-border bg-card/60 px-4 py-3.5 backdrop-blur-sm">
-          <span className="text-sm">휴무 시 리듬 선호경향</span>
+        {/* 휴무 시 리듬 선호경향 — 3단계 */}
+        <div className="rounded-lg border border-white/10 bg-[#111111]/30 px-4 py-3.5 backdrop-blur-md">
+          <span className="text-sm text-white">휴무 시 리듬 선호경향</span>
           <div className="mt-3 grid grid-cols-3 gap-1.5">
             {RHYTHM_OPTIONS.map((opt) => (
-              <Segment
+              <button
                 key={opt.value}
-                active={form.rhythmPreference === opt.value}
+                type="button"
                 onClick={() => update({ rhythmPreference: opt.value })}
-                label={opt.label}
-              />
+                className={cn(
+                  'rounded-lg px-2 py-2 text-xs font-medium transition-colors',
+                  // 활성: #555555 20% + 유리 (토글과 동일 언어)
+                  form.rhythmPreference === opt.value
+                    ? 'bg-[#555555]/20 text-white backdrop-blur-md'
+                    : 'bg-black/20 text-[#888888]',
+                )}
+              >
+                {opt.label}
+              </button>
             ))}
           </div>
         </div>
@@ -104,7 +114,7 @@ export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) 
 
 function YesNo({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex rounded-full bg-secondary p-0.5 text-xs font-medium">
+    <div className="flex rounded-full bg-black/20 p-0.5 text-xs font-medium">
       {[
         { v: true, label: 'Yes' },
         { v: false, label: 'No' },
@@ -115,35 +125,13 @@ function YesNo({ value, onChange }: { value: boolean; onChange: (v: boolean) => 
           onClick={() => onChange(o.v)}
           className={cn(
             'rounded-full px-3 py-1 transition-colors',
-            value === o.v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
+            // 활성: #555555 20% + 유리(glass) 효과
+            value === o.v ? 'bg-[#555555]/20 text-white backdrop-blur-md' : 'text-[#888888]',
           )}
         >
           {o.label}
         </button>
       ))}
     </div>
-  )
-}
-
-function Segment({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'rounded-lg px-2 py-2 text-xs font-medium transition-colors',
-        active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground',
-      )}
-    >
-      {label}
-    </button>
   )
 }

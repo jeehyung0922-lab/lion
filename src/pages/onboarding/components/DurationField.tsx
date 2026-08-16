@@ -38,10 +38,12 @@ export function DurationField({ label, value, onChange }: DurationFieldProps) {
         <button
           type="button"
           onClick={openSheet}
-          className="flex w-full flex-col items-start gap-1 rounded-2xl border border-border bg-card/60 px-4 py-3.5 text-left backdrop-blur-sm transition-colors hover:bg-card"
+          className="flex w-full flex-col items-start gap-1 rounded-lg border border-white/10 bg-[#111111]/30 px-4 py-3.5 text-left backdrop-blur-md transition-colors hover:bg-[#111111]/45"
         >
-          <span className="text-xs text-muted-foreground">{label}</span>
-          <span className="text-lg font-semibold">{formatDuration(value)}</span>
+          <span className="text-xs text-[#888888]">{label}</span>
+          <span className="text-[17px] font-normal tracking-[-0.05em] text-white">
+            {formatDuration(value)}
+          </span>
         </button>
       </SheetTrigger>
       <SheetContent side="bottom" className="mx-auto max-w-[480px] rounded-t-2xl">
@@ -52,7 +54,12 @@ export function DurationField({ label, value, onChange }: DurationFieldProps) {
           <DurationWheel value={draft} onChange={setDraft} />
         </div>
         <SheetFooter>
-          <Button onClick={confirm}>확인</Button>
+          <Button
+            onClick={confirm}
+            className="border border-white/20 bg-white/10 text-white backdrop-blur-sm hover:bg-white/15"
+          >
+            확인
+          </Button>
           <Button variant="ghost" onClick={() => setOpen(false)}>
             취소
           </Button>

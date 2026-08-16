@@ -20,9 +20,9 @@
   --color-ink-muted: #9aa6c7;
   --color-ink-faint: #64708f;
 
-  /* 강조 (시차 = 시간대를 건너는 궤적) */
-  --color-accent: #6ea8ff;
-  --color-accent-soft: #2b3d63;
+  /* 강조 (시차 = 시간대를 건너는 궤적) — shadcn --color-accent와 충돌 방지 위해 brand로 명명 */
+  --color-brand: #6ea8ff;
+  --color-brand-soft: #2b3d63;
 
   /* 모드 라벨 색상 (7종) */
   --color-mode-day: #f4b942;

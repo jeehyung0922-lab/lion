@@ -4,6 +4,7 @@ import AppLayout from './components/layout/AppLayout'
 import SplashPage from './pages/splash/SplashPage'
 import OnboardingPage from './pages/onboarding/OnboardingPage'
 import MainPage from './pages/main/MainPage'
+import CoordinatePage from './pages/coordinate/CoordinatePage'
 import ReportPage from './pages/report/ReportPage'
 import CollectbookPage from './pages/collectbook/CollectbookPage'
 import MyPage from './pages/mypage/MyPage'
@@ -26,6 +27,15 @@ export default function App() {
         {/* 진입: 스플래시가 가장 먼저 */}
         <Route path="/" element={<SplashPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
+        {/* 일정 조율 AI 대화 (GNB 없는 전체화면) */}
+        <Route
+          path="/coordinate"
+          element={
+            <RequireOnboarding>
+              <CoordinatePage />
+            </RequireOnboarding>
+          }
+        />
         {/* 앱 화면 (GNB) */}
         <Route
           element={

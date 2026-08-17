@@ -89,6 +89,7 @@
 | 스플래시 서브카피 | 14px · Thin(100) · -1% |
 | 카드 값 ("2시간" 등) | 17px · **Regular(400)** · -5% |
 | 화면 타이틀 | `text-xl`(20px) · Bold |
+| 밑줄 타이틀(홈·콜렉트북·리포트·마이페이지) | `underline underline-offset-2` + **`[text-decoration-skip-ink:none]`** 필수 — 자간이 좁아(`tracking-[-0.05em]`) 이게 없으면 단어 사이 밑줄이 끊겨 보임 |
 | 본문 | `text-sm`(14px) |
 | 라벨/보조 | `text-xs`(12px) · `#888888` 또는 muted |
 
@@ -134,7 +135,7 @@
 | --- | --- | --- | --- |
 | 콜렉트북 | `#333333` | 퍼플 `#B500F7` + 시안 `#00F7EF` | `/public/collectbook/background.svg` |
 | 마이페이지 | `#111111` | 블루 `#1000F7` + 그린 `#ABFF24` (outer) / 그린 `#00F767` + 핑크 `#F700A9` (inner, 저투명도) | `/public/mypage/background-outer.svg`, `-inner.svg` |
-| 기록 리포트("log book") | `#333333` | **블루 `#1000F7` + 옐로 `#FFE124`** — 콜렉트북과 카드·타이포는 같지만 배경 색은 의도적으로 다르게 | CSS 다중 `radial-gradient`(SVG 없이, [ReportPage.tsx](src/pages/report/ReportPage.tsx)의 `REPORT_BG`) |
+| 기록 리포트("reports") | `#333333` | **블루 `#1000F7` + 옐로 `#FFE124`** — 콜렉트북과 카드·타이포는 같지만 배경 색은 의도적으로 다르게 | CSS 다중 `radial-gradient`(SVG 없이, [ReportPage.tsx](src/pages/report/ReportPage.tsx)의 `REPORT_BG`) |
 
 > 카드 v2 계열(콜렉트북·마이페이지·기록 리포트)은 **"어두운 베이스 + 2색 블롭"이라는 기법과 카드/타이포 규격은 통일**하되, **블롭 색상 조합은 화면마다 팔레트(1-3)에서 다르게 골라** 화면별 정체성을 유지한다. 색상까지 100% 동일하게 재사용하지 않는다.
 
@@ -190,7 +191,8 @@ backdrop-blur-sm  hover:bg-white/15
 
 ### GNB
 - 하단 **플로팅 알약** + lucide 아이콘(Home / ClipboardList / BookMarked / User).
-- 활성 아이콘: `--color-brand`(#6ea8ff) + `bg-white/8`.
+- 알약: `border-white/20`(카드 v2와 통일 — 모든 페이지 위에 떠 있으므로) + `bg-[#111111]/40` + `backdrop-blur-md`.
+- 활성 아이콘: 시안 `#00F7EF`(1-3 액센트 팔레트) + `bg-white/8`. 비활성: `--color-ink-faint`.
 
 ---
 
@@ -222,7 +224,7 @@ backdrop-blur-sm  hover:bg-white/15
 - 라벨이 고정 헥스(`#888888`)가 아니라 **흰색 투명도**(`white/40~55`) 방식
 - 배경도 CSS 그라데이션이 아니라 **회전된 블러 블롭 SVG**(퍼플/시안, 블루/그린 등) 방식
 
-→ **기록 리포트는 콜렉트북 스타일(카드 v2)을 따르되, 배경 색은 다르게** 최종 결정했다. 카드(`white/5` · `border-white/20` · `rounded-xl`), 타이틀(17px·normal·-5%·밑줄), 섹션 라벨(12px·-2.5%·white/55), 페이지 패딩(`px-6 pt-5 pb-8`)은 콜렉트북과 동일한 값을 쓰지만, **배경 블롭 색상은 블루+옐로로 다르게 골라**(4-2 참고) 화면 구분이 가능하게 했다. 페이지 타이틀도 "collect book"처럼 소문자 영문(`log book`)으로 통일했다.
+→ **기록 리포트는 콜렉트북 스타일(카드 v2)을 따르되, 배경 색은 다르게** 최종 결정했다. 카드(`white/5` · `border-white/20` · `rounded-xl`), 타이틀(17px·normal·-5%·밑줄), 섹션 라벨(12px·-2.5%·white/55), 페이지 패딩(`px-6 pt-5 pb-8`)은 콜렉트북과 동일한 값을 쓰지만, **배경 블롭 색상은 블루+옐로로 다르게 골라**(4-2 참고) 화면 구분이 가능하게 했다. 페이지 타이틀도 "collect book"처럼 소문자 영문(`reports`)으로 통일했다.
 - 온보딩·홈은 구조(근무 유형별 4색 배경 등)는 유지하되, **타이포(폰트 크기·굵기·자간) 규칙만** 카드 v2 계열과 통일했다 — 페이지 타이틀 17px/normal/-5%/밑줄, 본문 13px/-2.5%, 섹션 라벨 12px/-2.5%/white55, 강조 수치 20px/**semibold**(볼드 대신)/-3%. 배경·카드 색상 구조는 온보딩·홈 고유(v1)를 그대로 유지한다.
 - **`font-bold`는 앱 전체에서 지양**한다. 강조가 필요하면 `font-semibold`까지만 쓴다(콜렉트북 원본이 `font-medium`을 넘지 않는 절제된 굵기를 쓰기 때문).
 

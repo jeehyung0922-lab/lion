@@ -178,7 +178,7 @@ export default function MainPage() {
     <div className="min-h-full w-full px-5 pt-14 pb-28" style={{ background: theme.gradient }}>
       {/* 헤더: 시차 + 오늘의 모드(탭 → 사유) */}
       <div className="flex items-start justify-between">
-        <span className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2">
+        <span className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2 [text-decoration-skip-ink:none]">
           시차
         </span>
         <button
@@ -240,7 +240,7 @@ export default function MainPage() {
       {/* 일정 조율 (AI 대화) */}
       <button
         onClick={() => navigate('/coordinate')}
-        className="mt-4 w-full rounded-xl bg-[#111111]/25 py-3.5 text-[13px] font-medium tracking-[-0.025em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
+        className="mt-4 w-full rounded-xl border border-white/10 bg-[#111111]/25 py-3.5 text-[13px] font-medium tracking-[-0.025em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
       >
         일정 조율하기 +
       </button>

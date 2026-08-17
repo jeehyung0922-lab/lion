@@ -19,14 +19,14 @@ const TABS: Tab[] = [
 export default function GNB() {
   return (
     <nav className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center pb-6">
-      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-[#111111]/40 px-2 py-1.5 shadow-lg backdrop-blur-md">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/20 bg-[#111111]/40 px-2 py-1.5 shadow-lg backdrop-blur-md">
         {TABS.map(({ to, label, Icon }) => (
           <NavLink key={to} to={to} aria-label={label}>
             {({ isActive }) => (
               <span
                 className="flex size-11 items-center justify-center rounded-full transition-colors"
                 style={{
-                  color: isActive ? 'var(--color-brand)' : 'var(--color-ink-faint)',
+                  color: isActive ? '#00F7EF' : 'var(--color-ink-faint)',
                   background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
                 }}
               >

@@ -94,7 +94,7 @@ export default function MyPage() {
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-[340px] pt-5 pb-8">
-        <h1 className="text-center text-[17px] leading-none font-normal tracking-[-0.05em] underline underline-offset-2">
+        <h1 className="text-center text-[17px] leading-none font-normal tracking-[-0.05em] underline underline-offset-2 [text-decoration-skip-ink:none]">
           my page
         </h1>
 

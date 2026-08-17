@@ -16,7 +16,7 @@ export interface RoutineRowVM {
 }
 
 const cellCls =
-  'flex items-center justify-center rounded-lg bg-[#111111]/25 px-2 py-3 text-center text-[13px] tracking-[-0.025em] backdrop-blur-md'
+  'flex items-center justify-center rounded-lg border border-white/10 bg-[#111111]/25 px-2 py-3 text-center text-[13px] tracking-[-0.025em] backdrop-blur-md'
 
 interface RoutineTableProps {
   accent: string
@@ -37,7 +37,7 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
         >
           TODAY
         </span>
-        <span className="flex items-center justify-center rounded-lg bg-[#111111]/25 py-2 text-[13px] tracking-[-0.025em] text-white/90 tabular-nums backdrop-blur-md">
+        <span className="flex items-center justify-center rounded-lg border border-white/10 bg-[#111111]/25 py-2 text-[13px] tracking-[-0.025em] text-white/90 tabular-nums backdrop-blur-md">
           {dateLabel}
         </span>
       </div>

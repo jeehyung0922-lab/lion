@@ -1,85 +1,48 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  fetchCollectbook,
+  type ApiLocalTime,
+  type CollectbookResponse,
+  type CollectbookZoneResponse,
+} from './collectbookApi'
 
-interface ZoneCardData {
-  rank: number
-  city: string
-  utc: string
-  days: number
-  sleepTime: string
-  isNew?: boolean
-}
-
-type MonthKey = '2026-06' | '2026-07' | '2026-08'
-
-interface MonthlyCollectbookData {
-  label: string
-  summary: string
-  detail: string
-  zones: ZoneCardData[]
-  totalMovement: string
-  largestMovement: string
-}
-
-const CURRENT_MONTH: MonthKey = '2026-08'
-const MONTH_ORDER: MonthKey[] = ['2026-06', '2026-07', '2026-08']
-
-const MONTHLY_MOCK_DATA: Record<MonthKey, MonthlyCollectbookData> = {
-  '2026-08': {
-    label: '2026년 8월',
-    summary: '8월 현재 4개의 시간대에서 살고 있어요.',
-    detail: '가장 오래 머문 시간대는 London Time · 9일이에요.',
-    zones: [
-      { rank: 1, city: 'London', utc: 'UTC+0', days: 9, sleepTime: '00:30–07:30' },
-      { rank: 2, city: 'Seoul', utc: 'UTC+9', days: 7, sleepTime: '23:00–06:00' },
-      { rank: 3, city: 'Bangkok', utc: 'UTC+7', days: 5, sleepTime: '01:00–08:00', isNew: true },
-      { rank: 4, city: 'New York', utc: 'UTC-5', days: 3, sleepTime: '02:00–09:00' },
-    ],
-    totalMovement: '24시간',
-    largestMovement: '9시간',
-  },
-  '2026-07': {
-    label: '2026년 7월',
-    summary: '7월에는 5개의 시간대에서 살았어요.',
-    detail: '가장 오래 머문 시간대는 Seoul Time · 8일이에요.',
-    zones: [
-      { rank: 1, city: 'Seoul', utc: 'UTC+9', days: 8, sleepTime: '23:30–06:30' },
-      { rank: 2, city: 'Paris', utc: 'UTC+2', days: 7, sleepTime: '00:00–07:00' },
-      { rank: 3, city: 'Dubai', utc: 'UTC+4', days: 6, sleepTime: '01:30–08:30', isNew: true },
-      { rank: 4, city: 'Singapore', utc: 'UTC+8', days: 5, sleepTime: '00:30–07:30' },
-      { rank: 5, city: 'Vancouver', utc: 'UTC-7', days: 3, sleepTime: '02:30–09:30' },
-    ],
-    totalMovement: '31시간',
-    largestMovement: '11시간',
-  },
-  '2026-06': {
-    label: '2026년 6월',
-    summary: '6월에는 3개의 시간대에서 살았어요.',
-    detail: '가장 오래 머문 시간대는 Tokyo Time · 12일이에요.',
-    zones: [
-      { rank: 1, city: 'Tokyo', utc: 'UTC+9', days: 12, sleepTime: '23:00–06:00' },
-      { rank: 2, city: 'Sydney', utc: 'UTC+10', days: 8, sleepTime: '22:30–05:30', isNew: true },
-      { rank: 3, city: 'Honolulu', utc: 'UTC-10', days: 4, sleepTime: '01:30–08:30' },
-    ],
-    totalMovement: '21시간',
-    largestMovement: '20시간',
-  },
-}
+const CURRENT_MONTH = '2026-08'
 
 export default function CollectbookPage() {
-  const [selectedMonth, setSelectedMonth] = useState<MonthKey>(CURRENT_MONTH)
-  const selectedMonthIndex = MONTH_ORDER.indexOf(selectedMonth)
-  const monthData = MONTHLY_MOCK_DATA[selectedMonth]
+  const [selectedMonth, setSelectedMonth] = useState(CURRENT_MONTH)
+  const [monthData, setMonthData] = useState<CollectbookResponse | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
   const isCurrentMonth = selectedMonth === CURRENT_MONTH
-  const isEarliestMonth = selectedMonthIndex === 0
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    setIsLoading(true)
+    setError(null)
+    setMonthData(null)
+
+    fetchCollectbook(selectedMonth, controller.signal)
+      .then((data) => setMonthData(data))
+      .catch((requestError: unknown) => {
+        if (requestError instanceof DOMException && requestError.name === 'AbortError') return
+        setError('콜렉트북을 불러오지 못했어요.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false)
+      })
+
+    return () => controller.abort()
+  }, [requestVersion, selectedMonth])
 
   function showPreviousMonth() {
-    if (isEarliestMonth) return
-    setSelectedMonth(MONTH_ORDER[selectedMonthIndex - 1])
+    setSelectedMonth((month) => moveMonth(month, -1))
   }
 
   function showNextMonth() {
     if (isCurrentMonth) return
-    setSelectedMonth(MONTH_ORDER[selectedMonthIndex + 1])
+    setSelectedMonth((month) => moveMonth(month, 1))
   }
 
   return (
@@ -99,8 +62,7 @@ export default function CollectbookPage() {
             type="button"
             aria-label="이전 달"
             onClick={showPreviousMonth}
-            disabled={isEarliestMonth}
-            className="flex h-8 w-8 items-center justify-center text-base text-white/65 disabled:cursor-not-allowed disabled:text-white/20"
+            className="flex h-8 w-8 items-center justify-center text-base text-white/65"
           >
             ‹
           </button>
@@ -109,7 +71,7 @@ export default function CollectbookPage() {
               id="selected-month"
               className="text-center text-[15px] font-medium tracking-[-0.03em] text-white"
             >
-              {monthData.label}
+              {formatMonthLabel(selectedMonth)}
             </h2>
             {!isCurrentMonth ? (
               <button
@@ -133,15 +95,42 @@ export default function CollectbookPage() {
         </div>
       </section>
 
-      <section
-        className="mt-5 px-1"
-        aria-label={`${monthData.label} 요약`}
-      >
+      {isLoading ? (
+        <StatusMessage message="콜렉트북을 불러오는 중이에요." />
+      ) : error ? (
+        <StatusMessage
+          message={error}
+          action={
+            <button
+              type="button"
+              onClick={() => setRequestVersion((version) => version + 1)}
+              className="rounded-full border border-white/20 bg-white/[0.06] px-2.5 py-1 text-[10px] text-white/65"
+            >
+              다시 시도
+            </button>
+          }
+        />
+      ) : monthData ? (
+        <CollectbookContent monthData={monthData} selectedMonth={selectedMonth} />
+      ) : null}
+    </div>
+  )
+}
+
+function CollectbookContent({
+  monthData,
+  selectedMonth,
+}: {
+  monthData: CollectbookResponse
+  selectedMonth: string
+}) {
+  const zones = [...monthData.zones].sort((a, b) => a.rank - b.rank)
+
+  return (
+    <>
+      <section className="mt-5 px-1" aria-label={`${formatMonthLabel(selectedMonth)} 요약`}>
         <p className="text-[14px] leading-5 tracking-[-0.025em] text-white">
           {monthData.summary}
-        </p>
-        <p className="mt-1 text-[12px] leading-5 tracking-[-0.025em] text-white/50">
-          {monthData.detail}
         </p>
       </section>
 
@@ -152,13 +141,19 @@ export default function CollectbookPage() {
         >
           이달의 시간대
         </h2>
-        <ol className="space-y-2">
-          {monthData.zones.map((zone) => (
-            <li key={zone.city}>
-              <ZoneCard zone={zone} />
-            </li>
-          ))}
-        </ol>
+        {zones.length > 0 ? (
+          <ol className="space-y-2">
+            {zones.map((zone) => (
+              <li key={`${zone.rank}-${zone.city}`}>
+                <ZoneCard zone={zone} />
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="px-1 py-4 text-[12px] text-white/45">
+            이달에 쌓인 시간대 기록이 아직 없어요.
+          </p>
+        )}
       </section>
 
       <section
@@ -166,15 +161,27 @@ export default function CollectbookPage() {
         aria-label="월간 이동 요약"
       >
         <dl className="space-y-2.5">
-          <MovementSummary label="총 시차 이동 시간" value={monthData.totalMovement} />
-          <MovementSummary label="가장 큰 하루 이동" value={monthData.largestMovement} />
+          <MovementSummary label="총 시차 이동 시간" value={`${monthData.totalTravelHours}시간`} />
+          <MovementSummary
+            label="가장 큰 하루 이동"
+            value={`${monthData.maxDailyTravelHours}시간`}
+          />
         </dl>
       </section>
+    </>
+  )
+}
+
+function StatusMessage({ message, action }: { message: string; action?: React.ReactNode }) {
+  return (
+    <div className="mt-10 flex flex-col items-center gap-3 px-1 text-center" aria-live="polite">
+      <p className="text-[12px] text-white/50">{message}</p>
+      {action}
     </div>
   )
 }
 
-function ZoneCard({ zone }: { zone: ZoneCardData }) {
+function ZoneCard({ zone }: { zone: CollectbookZoneResponse }) {
   return (
     <article className="flex h-[84px] w-full flex-col rounded-xl border border-white/20 bg-white/[0.05] px-4 py-3">
       <div className="grid grid-cols-[28px_1fr_auto] items-center">
@@ -188,7 +195,7 @@ function ZoneCard({ zone }: { zone: ZoneCardData }) {
               NEW
             </span>
           ) : null}
-          <span className="text-[10px] text-white/45">{zone.utc}</span>
+          <span className="text-[10px] text-white/45">{formatUtcOffset(zone.utcOffset)}</span>
         </div>
       </div>
 
@@ -196,13 +203,14 @@ function ZoneCard({ zone }: { zone: ZoneCardData }) {
         <div className="flex items-baseline gap-1.5">
           <dt className="text-[9px] text-white/40">생활</dt>
           <dd className="text-[12px] font-medium text-white/90 tabular-nums">
-            {zone.days}일
+            {zone.livedDays}일
           </dd>
         </div>
         <div className="flex items-baseline justify-end gap-1.5">
           <dt className="text-[9px] text-white/40">수면</dt>
           <dd className="text-[12px] font-medium text-white/90 tabular-nums">
-            {zone.sleepTime}
+            {formatLocalTime(zone.representativeSleepStart)}–
+            {formatLocalTime(zone.representativeSleepEnd)}
           </dd>
         </div>
       </dl>
@@ -219,4 +227,24 @@ function MovementSummary({ label, value }: { label: string; value: string }) {
       </dd>
     </div>
   )
+}
+
+function moveMonth(month: string, amount: number) {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const date = new Date(Date.UTC(year, monthNumber - 1 + amount, 1))
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+function formatMonthLabel(month: string) {
+  const [year, monthNumber] = month.split('-')
+  return `${year}년 ${Number(monthNumber)}월`
+}
+
+function formatUtcOffset(offset: number) {
+  return `UTC${offset >= 0 ? '+' : ''}${offset}`
+}
+
+function formatLocalTime(time: ApiLocalTime) {
+  if (typeof time === 'string') return time.slice(0, 5)
+  return `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`
 }

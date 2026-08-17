@@ -7,6 +7,10 @@ import MainPage from './pages/main/MainPage'
 import ReportPage from './pages/report/ReportPage'
 import CollectbookPage from './pages/collectbook/CollectbookPage'
 import MyPage from './pages/mypage/MyPage'
+import ProfileEditPage from './pages/mypage/ProfileEditPage'
+import SettingsPage from './pages/mypage/SettingsPage'
+import SupportPage from './pages/mypage/SupportPage'
+import TermsPage from './pages/mypage/TermsPage'
 
 /** 온보딩 미완료 상태로 앱 화면 직접 접근 시 → 스플래시로 */
 function RequireOnboarding({ children }: { children: React.ReactNode }) {
@@ -34,6 +38,10 @@ export default function App() {
           <Route path="/report" element={<ReportPage />} />
           <Route path="/collectbook" element={<CollectbookPage />} />
           <Route path="/mypage" element={<MyPage />} />
+          <Route path="/mypage/profile" element={<ProfileEditPage />} />
+          <Route path="/mypage/settings" element={<SettingsPage />} />
+          <Route path="/mypage/support" element={<SupportPage />} />
+          <Route path="/mypage/terms" element={<TermsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

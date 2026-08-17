@@ -27,7 +27,8 @@ export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) 
       footer={
         <Button
           onClick={onNext}
-          className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15"
+          disabled={!form.name.trim()}
+          className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15 disabled:opacity-40"
         >
           이 근무표로 나만의 리듬 생성하기
         </Button>
@@ -36,13 +37,14 @@ export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) 
       <p className="mb-6 text-center text-base font-medium text-white/90">정보를 입력해주세요.</p>
 
       <div className="space-y-3">
-        {/* 이름 — 단체 근무표에서 본인을 구별하는 데 사용 */}
+        {/* 이름 — 프로필에 저장되는 이름(ProfileRequest.name). 근무표 본인 행 선택은 다음 단계에서 별도 처리 */}
         <div className="rounded-lg border border-white/10 bg-[#111111]/30 px-4 py-3.5 backdrop-blur-md">
           <span className="text-xs text-[#888888]">이름</span>
           <Input
             value={form.name}
             onChange={(e) => update({ name: e.target.value })}
-            placeholder="근무표에 적힌 이름을 입력해주세요"
+            placeholder="이름을 입력해주세요"
+            maxLength={20}
             className="mt-1 h-auto border-none bg-transparent p-0 text-[17px] font-normal tracking-[-0.05em] text-white placeholder:text-white/30 focus-visible:ring-0"
           />
         </div>
@@ -78,22 +80,20 @@ export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) 
           />
         </div>
 
-        {/* 근무 중 휴식 가능 여부 — Yes/No */}
+        {/* 근무 중 휴식(낮잠) 가능 여부 — Yes/No + 가능 시간(분) */}
         <div className="rounded-lg border border-white/10 bg-[#111111]/30 px-4 py-3.5 backdrop-blur-md">
           <div className="flex items-center justify-between">
             <span className="text-sm text-white">근무 중 휴식 가능 여부</span>
-            <YesNo
-              value={form.canRestDuringShift}
-              onChange={(v) => update({ canRestDuringShift: v })}
-            />
+            <YesNo value={form.napAvailable} onChange={(v) => update({ napAvailable: v })} />
           </div>
-          {form.canRestDuringShift && (
-            <Input
-              value={form.restWindow}
-              onChange={(e) => update({ restWindow: e.target.value })}
-              placeholder="휴식 가능 시간 (예: 02:00~03:00)"
-              className="mt-3 border-white/10 bg-black/20 text-white placeholder:text-[#888888] focus-visible:border-white/25 focus-visible:ring-white/10"
-            />
+          {form.napAvailable && (
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs text-[#888888]">가능 시간</span>
+              <NapMinutesInput
+                value={form.napAvailableMinutes}
+                onChange={(v) => update({ napAvailableMinutes: v })}
+              />
+            </div>
           )}
         </div>
         {/* 휴무 시 리듬 선호경향 — 3단계 */}
@@ -143,6 +143,31 @@ function YesNo({ value, onChange }: { value: boolean; onChange: (v: boolean) => 
           {o.label}
         </button>
       ))}
+    </div>
+  )
+}
+
+/** napAvailableMinutes(분) 숫자 입력 — 15분 단위 +/- 스테퍼 */
+function NapMinutesInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(0, value - 15))}
+        className="flex size-6 items-center justify-center rounded-md bg-black/20 text-white/70 hover:bg-black/30"
+      >
+        −
+      </button>
+      <span className="w-14 text-center text-[13px] tracking-[-0.025em] text-white tabular-nums">
+        {value}분
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(240, value + 15))}
+        className="flex size-6 items-center justify-center rounded-md bg-black/20 text-white/70 hover:bg-black/30"
+      >
+        +
+      </button>
     </div>
   )
 }

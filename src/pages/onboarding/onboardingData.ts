@@ -1,13 +1,13 @@
-import type { RhythmPreference, ScheduleDay, ShiftType } from '@/types'
+import type { RhythmPreference, ShiftType } from '@/types'
 
 /** 온보딩 폼 상태 */
 export interface OnboardingForm {
-  name: string // 단체 근무표에서 본인을 구별하는 이름 (본인 선택 단계 자동 매칭에 사용)
+  name: string // 프로필에 저장되는 이름 (ProfileRequest.name)
   prepMinutes: number
   commuteMinutes: number
   targetSleepMinutes: number
-  canRestDuringShift: boolean
-  restWindow: string
+  napAvailable: boolean
+  napAvailableMinutes: number // napAvailable=true일 때만 사용(분)
   rhythmPreference: RhythmPreference
 }
 
@@ -16,8 +16,8 @@ export const DEFAULT_FORM: OnboardingForm = {
   prepMinutes: 75, // 1시간 15분
   commuteMinutes: 120, // 2시간
   targetSleepMinutes: 420, // 7시간 (기본)
-  canRestDuringShift: false,
-  restWindow: '',
+  napAvailable: false,
+  napAvailableMinutes: 30,
   rhythmPreference: 'BALANCED',
 }
 
@@ -30,25 +30,16 @@ export function formatDuration(min: number): string {
   return `${h}시간 ${m}분`
 }
 
-/** 15분 단위 옵션 생성 (min~max 분) */
-export function stepOptions(minMin: number, maxMin: number, step = 15): number[] {
-  const out: number[] = []
-  for (let v = minMin; v <= maxMin; v += step) out.push(v)
-  return out
-}
-
-/** 준비/통근 시간: 0 ~ 3시간, 15분 단위 */
-export const DURATION_OPTIONS = stepOptions(0, 180)
-
 /** 목표 수면 시간: 3 ~ 12시간, 15분 단위 (슬라이더) */
 export const SLEEP_MIN = 180
 export const SLEEP_MAX = 720
 export const SLEEP_STEP = 15
 
+/** 휴무 시 리듬 선호경향 (백엔드 ProfileRequest.rhythmPreference enum과 동일 값) */
 export const RHYTHM_OPTIONS: { value: RhythmPreference; label: string }[] = [
-  { value: 'MAINTAIN_FIRST', label: '리듬 유지 우선' },
+  { value: 'RHYTHM_LEAN', label: '리듬 유지 우선' },
   { value: 'BALANCED', label: '균형' },
-  { value: 'DAYLIFE_FIRST', label: '낮 생활 우선' },
+  { value: 'DAY_LEAN', label: '낮 생활 우선' },
 ]
 
 /**
@@ -69,35 +60,37 @@ export const SHIFT_META: Record<ShiftType, { label: string; dotColor: string }> 
 }
 
 /**
- * 목(mock) AI 분석 결과 — 2026년 8월 한 달 근무표.
- * TODO: /parse-schedule 응답으로 교체.
+ * AI 분석 결과 화면에서 다루는 교대유형 시각 정보 (실제 /parse-schedule 응답 기반).
+ * ⚠️ 백엔드는 shiftType을 DAY/EVENING/NIGHT/OFF로 정규화해주지 않고, 사진에서 읽은
+ * 원문 라벨을 그대로 돌려준다("주간","오후","야간","휴무" 등 근무표마다 다를 수 있음).
+ * rawLabel은 그 원문, shift는 사용자가 확인·보정한 카테고리(제출 시 실제로 쓰이는 값).
  */
 export interface ShiftTypeInfo {
+  rawLabel: string
   shift: ShiftType
   startTime: string
   endTime: string
 }
 
-export const MOCK_SHIFT_TYPES: ShiftTypeInfo[] = [
-  { shift: 'DAY', startTime: '07:00', endTime: '15:00' },
-  { shift: 'NIGHT', startTime: '22:00', endTime: '06:00' },
-]
+/** 흔한 표기 → 카테고리 추정(편의용 기본값일 뿐, 최종 확인은 사용자가 함) */
+const SHIFT_TYPE_ALIASES: Record<string, ShiftType> = {
+  DAY: 'DAY',
+  주간: 'DAY',
+  오전: 'DAY',
+  데이: 'DAY',
+  EVENING: 'EVENING',
+  오후: 'EVENING',
+  이브닝: 'EVENING',
+  NIGHT: 'NIGHT',
+  야간: 'NIGHT',
+  나이트: 'NIGHT',
+  OFF: 'OFF',
+  휴무: 'OFF',
+  휴일: 'OFF',
+  휴: 'OFF',
+}
 
-/** 목 근무표 (달력 색점용) — 8월~9월에 걸친 로스터. 데이/나이트/휴무 반복 패턴. */
-export const MOCK_SCHEDULE: ScheduleDay[] = buildMockSchedule()
-
-function buildMockSchedule(): ScheduleDay[] {
-  // 3일 데이 → 1일 휴무 → 3일 나이트 → 1일 휴무 반복 (시연용). 8/18 ~ 9/14 (두 달에 걸침)
-  const pattern: ShiftType[] = ['DAY', 'DAY', 'DAY', 'OFF', 'NIGHT', 'NIGHT', 'NIGHT', 'OFF']
-  const days: ScheduleDay[] = []
-  const start = new Date(2026, 7, 18) // 2026-08-18
-  const end = new Date(2026, 8, 14) // 2026-09-14
-  let i = 0
-  for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1), i++) {
-    const shift = pattern[i % pattern.length]
-    const meta = MOCK_SHIFT_TYPES.find((s) => s.shift === shift)
-    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    days.push({ date, shift, startTime: meta?.startTime, endTime: meta?.endTime })
-  }
-  return days
+/** AI가 돌려준 원문 라벨로 카테고리를 추정. 못 알아보면 'DAY'로 기본값(사용자가 화면에서 바로 보정 가능) */
+export function guessShiftType(rawLabel: string): ShiftType {
+  return SHIFT_TYPE_ALIASES[rawLabel.trim()] ?? 'DAY'
 }

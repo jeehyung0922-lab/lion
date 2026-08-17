@@ -5,7 +5,11 @@ import type { ApiLocalTime, ModeKey, RhythmPreference } from '@/types'
  * 로그인 없이 단일 사용자 상태로 동작(요청에 userId 등 식별자 없음).
  */
 // 백엔드가 CORS를 열어줘서 dev/prod 모두 절대 URL로 직접 호출.
-export const API_BASE = 'https://sport-collectibles-adipex-register.trycloudflare.com'
+// .env(.local)의 VITE_API_BASE_URL로 주입 — 서버 URL이 바뀌면 코드 수정 없이 .env만 바꾸면 됨.
+export const API_BASE = import.meta.env.VITE_API_BASE_URL
+if (import.meta.env.DEV && !API_BASE) {
+  console.warn('[api] VITE_API_BASE_URL이 비어있어요 — .env.example 참고해서 .env를 만들어주세요.')
+}
 
 export class ApiError extends Error {
   status: number

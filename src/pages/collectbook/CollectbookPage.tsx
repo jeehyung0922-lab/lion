@@ -133,13 +133,8 @@ export default function CollectbookPage() {
         </div>
       </section>
 
-      <section
-        className="mt-5 px-1"
-        aria-label={`${monthData.label} 요약`}
-      >
-        <p className="text-[14px] leading-5 tracking-[-0.025em] text-white">
-          {monthData.summary}
-        </p>
+      <section className="mt-5 px-1" aria-label={`${monthData.label} 요약`}>
+        <p className="text-[14px] leading-5 tracking-[-0.025em] text-white">{monthData.summary}</p>
         <p className="mt-1 text-[12px] leading-5 tracking-[-0.025em] text-white/50">
           {monthData.detail}
         </p>
@@ -161,10 +156,7 @@ export default function CollectbookPage() {
         </ol>
       </section>
 
-      <section
-        className="mt-6 border-t border-white/20 px-1 pt-4"
-        aria-label="월간 이동 요약"
-      >
+      <section className="mt-6 border-t border-white/20 px-1 pt-4" aria-label="월간 이동 요약">
         <dl className="space-y-2.5">
           <MovementSummary label="총 시차 이동 시간" value={monthData.totalMovement} />
           <MovementSummary label="가장 큰 하루 이동" value={monthData.largestMovement} />
@@ -178,9 +170,7 @@ function ZoneCard({ zone }: { zone: ZoneCardData }) {
   return (
     <article className="flex h-[84px] w-full flex-col rounded-xl border border-white/20 bg-white/[0.05] px-4 py-3">
       <div className="grid grid-cols-[28px_1fr_auto] items-center">
-        <span className="text-[10px] font-medium tracking-wide text-white/45">
-          #{zone.rank}
-        </span>
+        <span className="text-[10px] font-medium tracking-wide text-white/45">#{zone.rank}</span>
         <h3 className="text-[15px] font-medium tracking-[-0.035em] text-white">{zone.city}</h3>
         <div className="flex items-center gap-1.5">
           {zone.isNew ? (
@@ -195,15 +185,11 @@ function ZoneCard({ zone }: { zone: ZoneCardData }) {
       <dl className="mt-auto grid grid-cols-2 gap-3 pl-7">
         <div className="flex items-baseline gap-1.5">
           <dt className="text-[9px] text-white/40">생활</dt>
-          <dd className="text-[12px] font-medium text-white/90 tabular-nums">
-            {zone.days}일
-          </dd>
+          <dd className="text-[12px] font-medium text-white/90 tabular-nums">{zone.days}일</dd>
         </div>
         <div className="flex items-baseline justify-end gap-1.5">
           <dt className="text-[9px] text-white/40">수면</dt>
-          <dd className="text-[12px] font-medium text-white/90 tabular-nums">
-            {zone.sleepTime}
-          </dd>
+          <dd className="text-[12px] font-medium text-white/90 tabular-nums">{zone.sleepTime}</dd>
         </div>
       </dl>
     </article>

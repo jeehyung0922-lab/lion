@@ -1,37 +1,106 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import {
-  MOCK_WEEK,
-  MOCK_MONTH,
-  MOCK_TODAY,
-  weekdayOf,
-  fmtHours,
-  type DayRecord,
-} from './reportData'
+  api,
+  fromApiTime,
+  type DailyReportView,
+  type MonthlyReportView,
+  type ReplanReason,
+  type WeeklyReportView,
+} from '@/lib/api'
 
 /**
- * 기록 분석 리포트 — 디자인 확정 전 기능 구현(목데이터).
+ * 기록 분석 리포트 — 실제 API(GET /api/reports/weekly,monthly,daily) 연동.
  * 주간/월간 탭 · 기간 스테퍼(오늘로) · 재계획 요약 · 날짜 리스트 → 일별 상세.
  */
 type Tab = 'weekly' | 'monthly'
 
 const REPORT_BG = 'linear-gradient(160deg, #16203c 0%, #0f1830 55%, #0c1424 100%)'
 
-const addDays = (iso: string, n: number) => {
-  const d = new Date(iso + 'T00:00:00')
-  d.setDate(d.getDate() + n)
-  return d
+const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토']
+const weekdayKo = (iso: string) => WEEKDAY_KO[new Date(iso + 'T00:00:00').getDay()]
+
+const REPLAN_REASON_LABEL: Record<ReplanReason, string> = {
+  LATE_CLOCKOUT: '퇴근 지연',
+  EARLY_CLOCKOUT: '조기 퇴근',
+  SHIFT_CHANGE: '근무 변경',
+  PERSONAL_SCHEDULE: '개인 일정',
+  OTHER: '기타',
 }
+
+/** 분 → "N시간 M분" */
+function fmtMinutes(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  if (h === 0) return `${m}분`
+  if (m === 0) return `${h}시간`
+  return `${h}시간 ${m}분`
+}
+
+const addDays = (d: Date, n: number) => {
+  const nd = new Date(d)
+  nd.setDate(nd.getDate() + n)
+  return nd
+}
+const toISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const fmtMD = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`
 
 export default function ReportPage() {
   const [tab, setTab] = useState<Tab>('weekly')
   const [weekOffset, setWeekOffset] = useState(0) // 0 = 이번 주, 음수 = 과거
   const [monthOffset, setMonthOffset] = useState(0)
-  const [detail, setDetail] = useState<DayRecord | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+
+  const [weekly, setWeekly] = useState<WeeklyReportView | null>(null)
+  const [monthly, setMonthly] = useState<MonthlyReportView | null>(null)
+  const [daily, setDaily] = useState<DailyReportView | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const offset = tab === 'weekly' ? weekOffset : monthOffset
   const isCurrent = offset === 0
+
+  const today = new Date()
+  const weekStart = addDays(today, -today.getDay() + weekOffset * 7)
+  const weekEnd = addDays(weekStart, 6)
+  const weekLabel = `${fmtMD(weekStart)} - ${fmtMD(weekEnd)}`
+  const monthDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1)
+  const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
+  const monthLabel = `${monthDate.getFullYear()}년 ${monthDate.getMonth() + 1}월`
+
+  // 주간/월간 데이터 로드
+  useEffect(() => {
+    if (selectedDate) return
+    setLoading(true)
+    setError(null)
+    if (tab === 'weekly') {
+      api
+        .getWeeklyReport(toISO(weekStart), toISO(weekEnd))
+        .then(setWeekly)
+        .catch(() => setError('주간 리포트를 불러오지 못했어요.'))
+        .finally(() => setLoading(false))
+    } else {
+      api
+        .getMonthlyReport(monthKey)
+        .then(setMonthly)
+        .catch(() => setError('월간 리포트를 불러오지 못했어요.'))
+        .finally(() => setLoading(false))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, weekOffset, monthOffset, selectedDate])
+
+  // 일별 상세 로드
+  useEffect(() => {
+    if (!selectedDate) return
+    setLoading(true)
+    setError(null)
+    api
+      .getDailyReport(selectedDate)
+      .then(setDaily)
+      .catch(() => setError('일별 리포트를 불러오지 못했어요.'))
+      .finally(() => setLoading(false))
+  }, [selectedDate])
 
   function goToday() {
     setWeekOffset(0)
@@ -42,19 +111,16 @@ export default function ReportPage() {
     else setMonthOffset((o) => Math.min(0, o + dir))
   }
 
-  // 기간 라벨
-  const todayDow = new Date(MOCK_TODAY + 'T00:00:00').getDay()
-  const weekStart = addDays(MOCK_TODAY, -todayDow + weekOffset * 7)
-  const weekEnd = addDays(MOCK_TODAY, -todayDow + 6 + weekOffset * 7)
-  const weekLabel = `${fmtMD(weekStart)} - ${fmtMD(weekEnd)}`
-  const monthDate = new Date(2026, 7 + monthOffset, 1)
-  const monthLabel = `${monthDate.getFullYear()}년 ${monthDate.getMonth() + 1}월`
-
-  // 일별 상세 화면
-  if (detail) {
+  if (selectedDate) {
     return (
       <div className="min-h-full w-full px-5 pt-14 pb-28" style={{ background: REPORT_BG }}>
-        <DayDetail record={detail} onBack={() => setDetail(null)} />
+        <DayDetail
+          date={selectedDate}
+          data={daily}
+          loading={loading}
+          error={error}
+          onBack={() => setSelectedDate(null)}
+        />
       </div>
     )
   }
@@ -99,11 +165,15 @@ export default function ReportPage() {
         )}
       </div>
 
-      {tab === 'weekly' ? (
-        <WeeklyView isCurrent={isCurrent} onSelect={setDetail} />
-      ) : (
-        <MonthlyView isCurrent={isCurrent} />
-      )}
+      {error && <p className="mt-3 text-xs text-[#ff8fb0]">{error}</p>}
+      {loading && <p className="mt-3 text-xs text-white/45">불러오는 중…</p>}
+
+      {!loading &&
+        (tab === 'weekly' ? (
+          <WeeklyView data={weekly} onSelect={setSelectedDate} />
+        ) : (
+          <MonthlyView data={monthly} />
+        ))}
     </div>
   )
 }
@@ -132,47 +202,34 @@ function StepBtn({
 
 /* ---------- 주간 ---------- */
 function WeeklyView({
-  isCurrent,
+  data,
   onSelect,
 }: {
-  isCurrent: boolean
-  onSelect: (d: DayRecord) => void
+  data: WeeklyReportView | null
+  onSelect: (date: string) => void
 }) {
-  const week = isCurrent ? MOCK_WEEK : []
-  if (week.length === 0) return <EmptyState />
-
-  const total = week.reduce((s, d) => s + d.actualHours, 0)
-  const avg = total / week.length
-
-  // 재계획 요약: 사유별 집계 + 지킴 여부
-  const replans = week.flatMap((d) => d.replans)
-  const byReason = new Map<string, { count: number; kept: number }>()
-  for (const r of replans) {
-    const cur = byReason.get(r.reason) ?? { count: 0, kept: 0 }
-    cur.count += 1
-    if (r.kept) cur.kept += 1
-    byReason.set(r.reason, cur)
-  }
+  if (!data) return <EmptyState />
+  const hasDays = data.days.length > 0
 
   return (
     <>
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <StatCard label="총 수면시간" value={fmtHours(total)} />
-        <StatCard label="일평균 수면" value={fmtHours(avg)} />
+        <StatCard label="총 수면시간" value={fmtMinutes(data.totalSleepMinutes)} />
+        <StatCard label="일평균 수면" value={fmtMinutes(Math.round(data.averageSleepMinutes))} />
       </div>
 
       {/* 재계획 요약 */}
       <Card className="mt-3">
         <p className="mb-2 text-xs text-[#8792ab]">재계획 요약</p>
-        {replans.length === 0 ? (
+        {data.replanSummary.length === 0 ? (
           <p className="text-sm text-white/70">이번 주 재계획이 없었어요.</p>
         ) : (
           <ul className="space-y-1.5">
-            {[...byReason.entries()].map(([reason, s]) => (
-              <li key={reason} className="flex items-center justify-between text-sm">
-                <span className="text-white/90">{reason}</span>
+            {data.replanSummary.map((s) => (
+              <li key={s.reason} className="flex items-center justify-between text-sm">
+                <span className="text-white/90">{REPLAN_REASON_LABEL[s.reason]}</span>
                 <span className="text-white/55">
-                  {s.count}회 · 지킴 {s.kept}/{s.count}
+                  {s.totalCount}회 · 지킴 {s.keptCount}/{s.totalCount}
                 </span>
               </li>
             ))}
@@ -182,72 +239,90 @@ function WeeklyView({
 
       {/* 날짜 리스트 */}
       <p className="mt-5 mb-2 text-xs text-[#8792ab]">날짜별 기록</p>
-      <ul className="overflow-hidden rounded-2xl border border-white/10 bg-[#111111]/25 backdrop-blur-md">
-        {week.map((d) => (
-          <li key={d.date}>
-            <button
-              onClick={() => onSelect(d)}
-              className="flex w-full items-center gap-3 border-b border-white/5 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-white/5"
-            >
-              <span className="w-16 text-sm text-white/90">
-                {weekdayOf(d.date)} {d.date.slice(5).replace('-', '/')}
-              </span>
-              <span className="flex-1 text-sm font-semibold text-white tabular-nums">
-                {fmtHours(d.actualHours)}
-              </span>
-              {d.replans.length > 0 && (
-                <span className="rounded-full bg-[#B500F7]/25 px-2 py-0.5 text-[10px] text-[#e29bff]">
-                  재계획 {d.replans.length}
+      {!hasDays ? (
+        <EmptyState />
+      ) : (
+        <ul className="overflow-hidden rounded-2xl border border-white/10 bg-[#111111]/25 backdrop-blur-md">
+          {data.days.map((d) => (
+            <li key={d.date}>
+              <button
+                onClick={() => onSelect(d.date)}
+                className="flex w-full items-center gap-3 border-b border-white/5 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-white/5"
+              >
+                <span className="w-16 text-sm text-white/90">
+                  {weekdayKo(d.date)} {d.date.slice(5).replace('-', '/')}
                 </span>
-              )}
-              <ChevronRight className="size-4 text-white/40" />
-            </button>
-          </li>
-        ))}
-      </ul>
+                <span className="flex-1 text-sm font-semibold text-white tabular-nums">
+                  {fmtMinutes(d.sleepMinutes)}
+                </span>
+                <ChevronRight className="size-4 text-white/40" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   )
 }
 
 /* ---------- 월간 ---------- */
-function MonthlyView({ isCurrent }: { isCurrent: boolean }) {
-  if (!isCurrent) return <EmptyState />
-  const m = MOCK_MONTH
-  const delta = m.avgHours - m.prevAvgHours
-  const deltaLabel = `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}시간`
+function MonthlyView({ data }: { data: MonthlyReportView | null }) {
+  if (!data) return <EmptyState />
+  const prevAvg = data.averageSleepMinutesPrevMonth
+  const delta = prevAvg !== null ? data.averageSleepMinutes - prevAvg : null
 
   return (
     <>
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <StatCard label="한 달 총 수면" value={fmtHours(m.totalHours)} />
+        <StatCard label="한 달 총 수면" value={fmtMinutes(data.totalSleepMinutes)} />
         <StatCard
           label="일평균 수면"
-          value={fmtHours(m.avgHours)}
-          sub={`전월 대비 ${deltaLabel}`}
-          subColor={delta >= 0 ? '#00F7EF' : '#e29bff'}
+          value={fmtMinutes(Math.round(data.averageSleepMinutes))}
+          sub={
+            delta === null
+              ? undefined
+              : `전월 대비 ${delta >= 0 ? '+' : ''}${(delta / 60).toFixed(1)}시간`
+          }
+          subColor={delta !== null && delta >= 0 ? '#00F7EF' : '#e29bff'}
         />
       </div>
 
       <Card className="mt-3">
         <div className="mb-2 flex items-center justify-between">
           <p className="text-xs text-[#8792ab]">재계획</p>
-          <span className="text-xs text-white/55">{m.replanDays}일</span>
+          <span className="text-xs text-white/55">{data.replanDayCount}일</span>
         </div>
-        <ul className="space-y-1.5">
-          {m.replanByReason.map((r) => (
-            <li key={r.reason} className="flex items-center justify-between text-sm">
-              <span className="text-white/90">{r.reason}</span>
-              <span className="text-white/55">{r.count}회</span>
-            </li>
-          ))}
-        </ul>
+        {data.replanSummary.length === 0 ? (
+          <p className="text-sm text-white/70">이번 달 재계획이 없었어요.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {data.replanSummary.map((s) => (
+              <li key={s.reason} className="flex items-center justify-between text-sm">
+                <span className="text-white/90">{REPLAN_REASON_LABEL[s.reason]}</span>
+                <span className="text-white/55">{s.totalCount}회</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
     </>
   )
 }
 
 /* ---------- 일별 상세 ---------- */
-function DayDetail({ record, onBack }: { record: DayRecord; onBack: () => void }) {
+function DayDetail({
+  date,
+  data,
+  loading,
+  error,
+  onBack,
+}: {
+  date: string
+  data: DailyReportView | null
+  loading: boolean
+  error: string | null
+  onBack: () => void
+}) {
   return (
     <>
       <button
@@ -257,67 +332,73 @@ function DayDetail({ record, onBack }: { record: DayRecord; onBack: () => void }
         <ChevronLeft className="size-4" /> 돌아가기
       </button>
       <h1 className="text-lg font-bold text-white">
-        {record.date} ({weekdayOf(record.date)})
+        {date} ({weekdayKo(date)})
       </h1>
 
-      {/* 계획 vs 실제 */}
-      <Card className="mt-4">
-        <p className="mb-3 text-xs text-[#8792ab]">계획 vs 실제</p>
-        <div className="space-y-2">
-          <CompareRow label="취침" plan={record.planSleepStart} actual={record.actualSleepStart} />
-          <CompareRow label="기상" plan={record.planSleepEnd} actual={record.actualSleepEnd} />
-          <CompareRow
-            label="수면시간"
-            plan={fmtHours(record.planHours)}
-            actual={fmtHours(record.actualHours)}
-          />
-        </div>
-      </Card>
+      {loading && <p className="mt-4 text-xs text-white/45">불러오는 중…</p>}
+      {error && <p className="mt-4 text-xs text-[#ff8fb0]">{error}</p>}
+      {!loading && data && (
+        <>
+          {/* 계획 vs 실제 */}
+          <Card className="mt-4">
+            <p className="mb-3 text-xs text-[#8792ab]">계획 vs 실제</p>
+            <div className="space-y-2">
+              <CompareRow
+                label="취침"
+                plan={fromApiTime(data.sleep.plannedSleepStart)}
+                actual={fromApiTime(data.sleep.actualSleepStart)}
+              />
+              <CompareRow
+                label="기상"
+                plan={fromApiTime(data.sleep.plannedSleepEnd)}
+                actual={fromApiTime(data.sleep.actualSleepEnd)}
+              />
+              <CompareRow
+                label="수면시간"
+                plan={fmtMinutes(data.sleep.plannedSleepMinutes)}
+                actual={fmtMinutes(data.sleep.actualSleepMinutes)}
+              />
+            </div>
+          </Card>
 
-      {/* 재계획 로그 */}
-      {record.replans.length > 0 && (
-        <Card className="mt-3">
-          <p className="mb-2 text-xs text-[#8792ab]">재계획 로그</p>
-          <ul className="space-y-3">
-            {record.replans.map((r) => (
-              <li key={r.version} className="rounded-xl bg-black/20 p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-white">
-                    v{r.version} · {r.reason}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs text-white/70 tabular-nums">
-                    {r.before} <ArrowRight className="size-3" /> {r.after}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-white/65">{r.aiReason}</p>
-                <span
-                  className="mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px]"
-                  style={{
-                    background: r.kept ? 'rgba(0,247,239,0.15)' : 'rgba(226,155,255,0.15)',
-                    color: r.kept ? '#00F7EF' : '#e29bff',
-                  }}
-                >
-                  {r.kept ? '지킴' : '이후 재수정'}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+          {/* 재계획 로그 */}
+          {data.replanLog.length > 0 && (
+            <Card className="mt-3">
+              <p className="mb-2 text-xs text-[#8792ab]">재계획 로그</p>
+              <ul className="space-y-3">
+                {data.replanLog.map((r) => (
+                  <li key={r.version} className="rounded-xl bg-black/20 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-white">
+                        v{r.version} · {REPLAN_REASON_LABEL[r.reason]}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-white/70 tabular-nums">
+                        {fromApiTime(r.sleepStartBefore)} <ArrowRight className="size-3" />{' '}
+                        {fromApiTime(r.sleepStartAfter)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-white/65">{r.aiReason}</p>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
-      {/* 그날 체크인 */}
-      {record.checkin && (
-        <Card className="mt-3">
-          <p className="mb-2 text-xs text-[#8792ab]">체크인 기록</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-            <Info label="컨디션" value={record.checkin.condition} />
-            <Info label="수면 만족도" value={`${record.checkin.satisfaction}/5`} />
-            <Info label="잠드는데" value={record.checkin.latency} />
-            {record.checkin.nightHunger && (
-              <Info label="야간 허기" value={record.checkin.nightHunger} />
-            )}
-          </div>
-        </Card>
+          {/* 그날 체크인 */}
+          {data.checkIn && (
+            <Card className="mt-3">
+              <p className="mb-2 text-xs text-[#8792ab]">체크인 기록</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <Info label="컨디션" value={`${data.checkIn.conditionScore}/5`} />
+                <Info label="수면 만족도" value={`${data.checkIn.sleepSatisfaction}/5`} />
+                <Info label="잠드는데" value={`${data.checkIn.sleepLatencyMinutes}분`} />
+                {data.checkIn.nightHungerScore > 0 && (
+                  <Info label="야간 허기" value={`${data.checkIn.nightHungerScore}/5`} />
+                )}
+              </div>
+            </Card>
+          )}
+        </>
       )}
     </>
   )

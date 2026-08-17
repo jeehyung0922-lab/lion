@@ -36,6 +36,17 @@ export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) 
       <p className="mb-6 text-center text-base font-medium text-white/90">정보를 입력해주세요.</p>
 
       <div className="space-y-3">
+        {/* 이름 — 단체 근무표에서 본인을 구별하는 데 사용 */}
+        <div className="rounded-lg border border-white/10 bg-[#111111]/30 px-4 py-3.5 backdrop-blur-md">
+          <span className="text-xs text-[#888888]">이름</span>
+          <Input
+            value={form.name}
+            onChange={(e) => update({ name: e.target.value })}
+            placeholder="근무표에 적힌 이름을 입력해주세요"
+            className="mt-1 h-auto border-none bg-transparent p-0 text-[17px] font-normal tracking-[-0.05em] text-white placeholder:text-white/30 focus-visible:ring-0"
+          />
+        </div>
+
         {/* 준비/통근 시간 — 탭하면 휠 피커 */}
         <div className="grid grid-cols-2 gap-3">
           <DurationField

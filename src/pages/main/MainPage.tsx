@@ -29,16 +29,19 @@ export default function MainPage() {
     <div className="min-h-full w-full px-5 pt-14 pb-28" style={{ background: theme.gradient }}>
       {/* 헤더: 시차 + 오늘의 모드(탭 → 사유) */}
       <div className="flex items-start justify-between">
-        <span className="text-lg font-semibold text-white underline decoration-white/40 underline-offset-4">
+        <span className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2">
           시차
         </span>
-        <button onClick={() => setShowReason((v) => !v)} className="text-sm text-white/90">
+        <button
+          onClick={() => setShowReason((v) => !v)}
+          className="text-[13px] tracking-[-0.025em] text-white/90"
+        >
           {theme.label}
         </button>
       </div>
 
       {showReason && (
-        <div className="mt-2 ml-auto max-w-[85%] rounded-xl border border-white/10 bg-[#111111]/40 px-3 py-2.5 text-xs leading-relaxed text-white/85 backdrop-blur-md">
+        <div className="mt-2 ml-auto max-w-[85%] rounded-xl border border-white/10 bg-[#111111]/40 px-3 py-2.5 text-[12px] leading-relaxed tracking-[-0.025em] text-white/85 backdrop-blur-md">
           {MODE_REASON}
         </div>
       )}
@@ -46,15 +49,19 @@ export default function MainPage() {
       {/* 시차 표시 + 무월 게이지 */}
       <div className="mt-7 flex items-start justify-between gap-4">
         <div className="flex-1">
-          <p className="text-xl leading-snug font-bold text-white">
+          <p className="text-[20px] leading-snug font-semibold tracking-[-0.03em] text-white">
             현재 {MOCK_NAME} 님은
             <br />
             {MOCK_CITY} 시간대에 살고 있어요.
           </p>
           <button
             onClick={() => navigate('/collectbook')}
-            className="mt-2 rounded-md px-2.5 py-1 text-xs font-medium text-white"
-            style={{ background: theme.accent }}
+            className="mt-2 rounded-md px-2.5 py-1 text-[12px] font-medium tracking-[-0.025em]"
+            style={{
+              background: '#FFFFFF',
+              color: '#1a1a1a',
+              boxShadow: '0 0 14px 2px rgba(255,255,255,0.55)',
+            }}
           >
             이번 주는 {MOCK_CROSS_HOURS}시간을 건넙니다.
           </button>
@@ -70,7 +77,7 @@ export default function MainPage() {
       {/* 일정 조율 (AI 대화) */}
       <button
         onClick={() => navigate('/coordinate')}
-        className="mt-4 w-full rounded-xl bg-[#111111]/25 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
+        className="mt-4 w-full rounded-xl bg-[#111111]/25 py-3.5 text-[13px] font-medium tracking-[-0.025em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
       >
         일정 조율하기 +
       </button>

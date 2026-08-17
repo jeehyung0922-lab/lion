@@ -57,9 +57,9 @@ export default function CoordinatePage() {
   }
 
   return (
-    <div className="mx-auto flex h-[100dvh] w-full max-w-[640px] flex-col bg-[#0d1526]">
+    <div className="mx-auto flex h-full w-full max-w-[640px] flex-col overflow-hidden bg-[#0d1526]">
       {/* 헤더 */}
-      <header className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+      <header className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-3">
         <button
           onClick={() => navigate('/home')}
           aria-label="뒤로"
@@ -70,8 +70,8 @@ export default function CoordinatePage() {
         <h1 className="text-base font-semibold text-white">일정 조율</h1>
       </header>
 
-      {/* 대화 */}
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      {/* 대화 — min-h-0 없으면 flex 아이템이 내용만큼 늘어나 전체 화면이 스크롤됨 */}
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.map((m, i) => (
           <Bubble key={i} msg={m} onApply={() => navigate('/home')} />
         ))}
@@ -86,7 +86,7 @@ export default function CoordinatePage() {
       </div>
 
       {/* 입력 */}
-      <div className="flex items-center gap-2 border-t border-white/10 px-3 py-3">
+      <div className="flex shrink-0 items-center gap-2 border-t border-white/10 px-3 py-3">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}

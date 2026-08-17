@@ -2,6 +2,7 @@ import type { RhythmPreference, ScheduleDay, ShiftType } from '@/types'
 
 /** 온보딩 폼 상태 */
 export interface OnboardingForm {
+  name: string // 단체 근무표에서 본인을 구별하는 이름 (본인 선택 단계 자동 매칭에 사용)
   prepMinutes: number
   commuteMinutes: number
   targetSleepMinutes: number
@@ -11,6 +12,7 @@ export interface OnboardingForm {
 }
 
 export const DEFAULT_FORM: OnboardingForm = {
+  name: '',
   prepMinutes: 75, // 1시간 15분
   commuteMinutes: 120, // 2시간
   targetSleepMinutes: 420, // 7시간 (기본)

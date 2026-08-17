@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { DEFAULT_FORM, type OnboardingForm } from './onboardingData'
 import { PersonalizeStep } from './steps/PersonalizeStep'
 import { ScheduleStep } from './steps/ScheduleStep'
+import { PersonSelectStep } from './steps/PersonSelectStep'
 import { AiResultStep } from './steps/AiResultStep'
 
 /**
  * 온보딩 (내 담당) — 스플래시(SplashPage)에서 진입.
- * 순서: 개인화 입력 → 근무표 등록 → AI 분석 확인·보정 → 메인
+ * 순서: 개인화 입력 → 근무표 등록 → [단체표면] 본인 선택 → AI 분석 확인·보정 → 메인
  * 저장된 프로필이 있으면 기존값을 프리필해 확인·수정 가능.
  * 데이터는 목(mock) 기반. TODO: /parse-schedule 연동, 프로필 서버 저장.
  */
-type Step = 0 | 1 | 2
+type Step = 0 | 1 | 2 | 3
 
 function loadForm(): OnboardingForm {
   const saved = localStorage.getItem('kinglion.profile')
@@ -41,8 +42,10 @@ export default function OnboardingPage() {
   return (
     <div className="h-full">
       {step === 0 && <PersonalizeStep form={form} update={update} onNext={() => setStep(1)} />}
+      {/* 등록 후 단체표로 판별되면 본인 선택(2), 개인표면 바로 AI 결과(3)로. 지금은 단체표 가정. */}
       {step === 1 && <ScheduleStep onRegistered={() => setStep(2)} />}
-      {step === 2 && <AiResultStep onConfirm={finish} />}
+      {step === 2 && <PersonSelectStep enteredName={form.name} onSelected={() => setStep(3)} />}
+      {step === 3 && <AiResultStep onConfirm={finish} />}
     </div>
   )
 }

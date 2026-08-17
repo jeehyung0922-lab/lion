@@ -304,8 +304,9 @@ function WeeklyView({
                   <span className="w-16 text-[13px] tracking-[-0.025em] text-white/90">
                     {weekdayKo(d.date)} {d.date.slice(5).replace('-', '/')}
                   </span>
-                  <span className="flex-1 text-[13px] font-medium text-white tabular-nums">
-                    {fmtMinutes(d.sleepMinutes)}
+                  <span className="flex-1 text-[13px] text-white">
+                    <span className="mr-1.5 text-white/45">수면시간</span>
+                    <span className="font-medium tabular-nums">{fmtMinutes(d.sleepMinutes)}</span>
                   </span>
                   {replanCounts[d.date] > 0 && (
                     <span className="rounded-full border border-white/20 bg-white/[0.06] px-2 py-0.5 text-[10px] tracking-[-0.025em] text-white/70">
@@ -432,7 +433,7 @@ function DayDetail({
               <p className="mb-2 text-[12px] tracking-[-0.025em] text-white/55">재계획 로그</p>
               <ul className="space-y-3">
                 {data.replanLog.map((r) => (
-                  <li key={r.version} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <li key={r.version} className="rounded-xl border border-white/20 bg-black/20 p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-[13px] font-medium tracking-[-0.025em] text-white">
                         v{r.version} · {REPLAN_REASON_LABEL[r.reason]}

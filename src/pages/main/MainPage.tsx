@@ -190,7 +190,7 @@ export default function MainPage() {
       </div>
 
       {showReason && data && (
-        <div className="mt-2 ml-auto max-w-[85%] rounded-xl border border-white/10 bg-[#111111]/40 px-3 py-2.5 text-[12px] leading-relaxed tracking-[-0.025em] whitespace-pre-line text-white/85 backdrop-blur-md">
+        <div className="mt-2 ml-auto max-w-[85%] rounded-xl border border-white/20 bg-[#111111]/40 px-3 py-2.5 text-[12px] leading-relaxed tracking-[-0.025em] whitespace-pre-line text-white/85 backdrop-blur-md">
           {data.modeReason}
         </div>
       )}
@@ -240,7 +240,7 @@ export default function MainPage() {
       {/* 일정 조율 (AI 대화) */}
       <button
         onClick={() => navigate('/coordinate')}
-        className="mt-4 w-full rounded-xl border border-white/10 bg-[#111111]/25 py-3.5 text-[13px] font-medium tracking-[-0.025em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
+        className="mt-4 w-full rounded-xl border border-white/20 bg-[#111111]/25 py-3.5 text-[13px] font-medium tracking-[-0.025em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
       >
         일정 조율하기 +
       </button>

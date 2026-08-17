@@ -26,7 +26,7 @@ export function MoonGauge({ hours, max = 12 }: MoonGaugeProps) {
   const offset = filled ? c * (1 - frac) : c
 
   return (
-    <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-white/10 bg-[#111111]/25 px-4 py-3 backdrop-blur-md">
+    <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-white/20 bg-[#111111]/25 px-4 py-3 backdrop-blur-md">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90">
           <defs>

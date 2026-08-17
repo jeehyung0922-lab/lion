@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ScheduleDay } from '@/types'
 import { api, toApiTime, type ParseScheduleResponse, type ShiftTypeDefaultDto } from '@/lib/api'
-import { DEFAULT_FORM, guessShiftType, type OnboardingForm, type ShiftTypeInfo } from './onboardingData'
+import {
+  DEFAULT_FORM,
+  guessShiftType,
+  type OnboardingForm,
+  type ShiftTypeInfo,
+} from './onboardingData'
 import { PersonalizeStep } from './steps/PersonalizeStep'
 import { ScheduleStep } from './steps/ScheduleStep'
 import { AiResultStep } from './steps/AiResultStep'
@@ -87,10 +92,16 @@ export default function OnboardingPage() {
       // 여럿이면(예: "주간"/"데이"를 둘 다 DAY로 보정) 카테고리당 하나로 합친다(나중 값 우선).
       const byShift = new Map<'DAY' | 'EVENING' | 'NIGHT', ShiftTypeDefaultDto>(
         shiftTypes
-          .filter((t): t is ShiftTypeInfo & { shift: 'DAY' | 'EVENING' | 'NIGHT' } => t.shift !== 'OFF')
+          .filter(
+            (t): t is ShiftTypeInfo & { shift: 'DAY' | 'EVENING' | 'NIGHT' } => t.shift !== 'OFF',
+          )
           .map((t) => [
             t.shift,
-            { shiftType: t.shift, startTime: toApiTime(t.startTime), endTime: toApiTime(t.endTime) },
+            {
+              shiftType: t.shift,
+              startTime: toApiTime(t.startTime),
+              endTime: toApiTime(t.endTime),
+            },
           ]),
       )
       const shiftTypeDefaults: ShiftTypeDefaultDto[] = [...byShift.values()]

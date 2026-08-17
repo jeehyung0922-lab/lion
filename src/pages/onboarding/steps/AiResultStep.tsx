@@ -16,7 +16,12 @@ const SHIFT_LABEL: Record<ShiftType, string> = {
   NIGHT: 'NIGHT (야간)',
   OFF: '휴무',
 }
-const SHIFT_ICON: Record<ShiftType, typeof Sun> = { DAY: Sun, EVENING: Sunset, NIGHT: Moon, OFF: Coffee }
+const SHIFT_ICON: Record<ShiftType, typeof Sun> = {
+  DAY: Sun,
+  EVENING: Sunset,
+  NIGHT: Moon,
+  OFF: Coffee,
+}
 // 불투명 배경 — 뒤 그라데이션 글로우의 영향을 받지 않도록
 const SHIFT_CARD_BG: Record<ShiftType, string> = {
   DAY: '#3a6018',
@@ -239,7 +244,9 @@ function ShiftTypeEditor({
                   variant="secondary"
                   onClick={() => setShift(s)}
                   className={
-                    shift === s ? 'border border-white/30 bg-white/15 text-white hover:bg-white/20' : ''
+                    shift === s
+                      ? 'border border-white/30 bg-white/15 text-white hover:bg-white/20'
+                      : ''
                   }
                 >
                   {s === 'OFF' ? '휴무' : s}

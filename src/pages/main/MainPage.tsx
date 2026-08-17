@@ -37,14 +37,16 @@ function fmtMinutes(min: number): string {
 }
 
 /** 세그먼트 체인(각 seg.start === 이전 seg.end)을 "0일차 00:00부터 누적된 절대 분"으로 변환 */
-function toAbsoluteSegments(timeline: TimelineSegment[]): { type: string; startAbs: number; endAbs: number }[] {
+function toAbsoluteSegments(
+  timeline: TimelineSegment[],
+): { type: string; startAbs: number; endAbs: number }[] {
   if (timeline.length === 0) return []
   let cursor = toMinutes(fromApiTime(timeline[0].start))
   const out: { type: string; startAbs: number; endAbs: number }[] = []
   for (const seg of timeline) {
     const start = toMinutes(fromApiTime(seg.start))
     const end = toMinutes(fromApiTime(seg.end))
-    const dur = ((end - start + 1440) % 1440) || 1440
+    const dur = (end - start + 1440) % 1440 || 1440
     out.push({ type: seg.type, startAbs: cursor, endAbs: cursor + dur })
     cursor += dur
   }
@@ -52,7 +54,10 @@ function toAbsoluteSegments(timeline: TimelineSegment[]): { type: string; startA
 }
 
 /** dayOffset(0=오늘, 1=내일, ...)에 해당하는 00:00~24:00 구간만 잘라 반환. 자정에 걸친 세그먼트는 분리됨 */
-function daySlice(abs: { type: string; startAbs: number; endAbs: number }[], dayOffset: number): DaySegment[] {
+function daySlice(
+  abs: { type: string; startAbs: number; endAbs: number }[],
+  dayOffset: number,
+): DaySegment[] {
   const dayStart = dayOffset * 1440
   const dayEnd = dayStart + 1440
   const out: DaySegment[] = []
@@ -85,7 +90,9 @@ const REASON_KEYWORDS: Record<string, { include: string[]; exclude?: string[] }>
   '식사 제한': { include: MEAL_WORDS },
 }
 
-function splitReasonSegments(aiReason: string): string[] {
+// AI가 아직 개인화를 안 돌렸으면 aiReason이 null로 온다(항상 문자열이 아님) — 실측으로 확인함
+function splitReasonSegments(aiReason: string | null): string[] {
+  if (!aiReason) return []
   return aiReason
     .split('/')
     .map((s) => s.trim())
@@ -171,16 +178,19 @@ export default function MainPage() {
     <div className="min-h-full w-full px-5 pt-14 pb-28" style={{ background: theme.gradient }}>
       {/* 헤더: 시차 + 오늘의 모드(탭 → 사유) */}
       <div className="flex items-start justify-between">
-        <span className="text-lg font-semibold text-white underline decoration-white/40 underline-offset-4">
+        <span className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2">
           시차
         </span>
-        <button onClick={() => setShowReason((v) => !v)} className="text-sm text-white/90">
+        <button
+          onClick={() => setShowReason((v) => !v)}
+          className="text-[13px] tracking-[-0.025em] text-white/90"
+        >
           {theme.label}
         </button>
       </div>
 
       {showReason && data && (
-        <div className="mt-2 ml-auto max-w-[85%] rounded-xl border border-white/10 bg-[#111111]/40 px-3 py-2.5 text-xs leading-relaxed whitespace-pre-line text-white/85 backdrop-blur-md">
+        <div className="mt-2 ml-auto max-w-[85%] rounded-xl border border-white/10 bg-[#111111]/40 px-3 py-2.5 text-[12px] leading-relaxed tracking-[-0.025em] whitespace-pre-line text-white/85 backdrop-blur-md">
           {data.modeReason}
         </div>
       )}
@@ -190,14 +200,18 @@ export default function MainPage() {
       {/* 시차 표시 + 무월 게이지 */}
       <div className="mt-7 flex items-start justify-between gap-4">
         <div className="flex-1">
-          <p className="text-xl leading-snug font-bold text-white">
+          <p className="text-[20px] leading-snug font-semibold tracking-[-0.03em] text-white">
             {loading ? '불러오는 중…' : (data?.jetlag.message ?? '')}
           </p>
           {data && (
             <button
               onClick={() => navigate('/collectbook')}
-              className="mt-2 rounded-md px-2.5 py-1 text-xs font-medium text-white"
-              style={{ background: theme.accent }}
+              className="mt-2 rounded-md px-2.5 py-1 text-[12px] font-medium tracking-[-0.025em]"
+              style={{
+                background: '#FFFFFF',
+                color: '#1a1a1a',
+                boxShadow: '0 0 14px 2px rgba(255,255,255,0.55)',
+              }}
             >
               {data.jetlag.weeklyMessage}
             </button>
@@ -226,7 +240,7 @@ export default function MainPage() {
       {/* 일정 조율 (AI 대화) */}
       <button
         onClick={() => navigate('/coordinate')}
-        className="mt-4 w-full rounded-xl bg-[#111111]/25 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
+        className="mt-4 w-full rounded-xl bg-[#111111]/25 py-3.5 text-[13px] font-medium tracking-[-0.025em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
       >
         일정 조율하기 +
       </button>

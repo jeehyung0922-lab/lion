@@ -60,7 +60,9 @@ export function MoonGauge({ hours, max = 12 }: MoonGaugeProps) {
           <Moon className="size-6 text-white" fill="currentColor" />
         </span>
       </div>
-      <span className="text-sm font-semibold tabular-nums text-white">{hours}h</span>
+      <span className="text-[13px] font-medium tracking-[-0.025em] text-white tabular-nums">
+        {hours}h
+      </span>
     </div>
   )
 }

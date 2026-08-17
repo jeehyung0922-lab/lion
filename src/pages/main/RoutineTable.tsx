@@ -16,7 +16,7 @@ export interface RoutineRowVM {
 }
 
 const cellCls =
-  'flex items-center justify-center rounded-lg bg-[#111111]/25 px-2 py-3 text-center backdrop-blur-md'
+  'flex items-center justify-center rounded-lg bg-[#111111]/25 px-2 py-3 text-center text-[13px] tracking-[-0.025em] backdrop-blur-md'
 
 interface RoutineTableProps {
   accent: string
@@ -32,12 +32,12 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
       {/* 헤더: TODAY + 날짜 */}
       <div className="grid grid-cols-[auto_1fr] gap-2">
         <span
-          className="flex items-center justify-center rounded-lg border px-3 py-2 text-xs font-bold text-white"
+          className="flex items-center justify-center rounded-lg border px-3 py-2 text-[11px] font-semibold tracking-[-0.025em] text-white"
           style={{ background: accent, borderColor: 'rgba(255,255,255,0.35)' }}
         >
           TODAY
         </span>
-        <span className="flex items-center justify-center rounded-lg bg-[#111111]/25 py-2 text-sm text-white/90 backdrop-blur-md tabular-nums">
+        <span className="flex items-center justify-center rounded-lg bg-[#111111]/25 py-2 text-[13px] tracking-[-0.025em] text-white/90 tabular-nums backdrop-blur-md">
           {dateLabel}
         </span>
       </div>
@@ -64,7 +64,7 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
               {isOpen && row.reasons.length > 0 && (
                 <div className="mt-2 flex gap-3 rounded-xl border border-white/10 bg-[#111111]/35 p-3 backdrop-blur-md">
                   <span
-                    className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                    className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
                     style={{ background: accent }}
                   >
                     AI
@@ -73,7 +73,7 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
                     {row.reasons.map((r, ri) => (
                       <p
                         key={ri}
-                        className="text-xs leading-relaxed whitespace-pre-line text-white/85"
+                        className="text-[12px] leading-relaxed tracking-[-0.025em] whitespace-pre-line text-white/85"
                       >
                         {r}
                       </p>

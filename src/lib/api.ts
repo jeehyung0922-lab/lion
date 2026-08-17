@@ -156,7 +156,8 @@ export interface TodayRoutineView {
   modeReason: string
   timeline: TimelineSegment[]
   mealConstraints: MealConstraintsView
-  aiReason: string
+  /** AI 개인화(suggest-adjustment)가 아직 안 돌았으면 null로 옴(실측 확인) */
+  aiReason: string | null
   wasJustPersonalized: boolean
   jetlag: JetlagView
   sleepDeficit: SleepDeficitView

@@ -40,10 +40,10 @@ export function ScheduleStep({ onParsed }: ScheduleStepProps) {
     if (!file) return
     setLoading(true)
     setError(null)
+    setRowLabels(null)
     try {
       const imageBase64 = await fileToBase64(file)
       const result = await api.parseSchedule({ imageBase64, myRowLabel })
-      setRowLabels(null)
       onParsed(result)
     } catch (e) {
       const rowLabelErr = asRowLabelError(e)

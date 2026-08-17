@@ -19,10 +19,24 @@ export class ApiError extends Error {
   }
 }
 
+/** 로그인이 없어 온보딩 profile 등록 응답의 userId가 곧 사용자 식별자 — 이후 모든 요청에 X-User-Id로 붙인다. */
+const USER_ID_KEY = 'kinglion.userId'
+export function getUserId(): string | null {
+  return localStorage.getItem(USER_ID_KEY)
+}
+export function clearUserId(): void {
+  localStorage.removeItem(USER_ID_KEY)
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const userId = getUserId()
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(userId ? { 'X-User-Id': userId } : {}),
+      ...(options?.headers ?? {}),
+    },
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -78,6 +92,12 @@ export interface ProfileRequest {
 
 export interface OkResponse {
   ok: boolean
+}
+
+/** X-User-Id 헤더 없이 호출하면 새 사용자가 발급되며 userId를 돌려준다. */
+export interface ProfileResponse {
+  ok: boolean
+  userId: number
 }
 
 export interface ParseScheduleApiRequest {
@@ -286,7 +306,11 @@ export const api = {
   parseSchedule: (req: ParseScheduleApiRequest) =>
     post<ParseScheduleResponse>('/api/onboarding/schedule/parse', req),
   submitSchedule: (req: ScheduleRequest) => post<OkResponse>('/api/onboarding/schedule', req),
-  submitProfile: (req: ProfileRequest) => post<OkResponse>('/api/onboarding/profile', req),
+  submitProfile: async (req: ProfileRequest) => {
+    const result = await post<ProfileResponse>('/api/onboarding/profile', req)
+    localStorage.setItem(USER_ID_KEY, String(result.userId))
+    return result
+  },
 
   // 오늘의 루틴
   getTodayRoutine: () => get<TodayRoutineView>('/api/routines/today'),

@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom'
 interface MenuItem {
   id: 'profile' | 'settings' | 'support' | 'terms'
   label: string
+  to: string
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  { id: 'profile', label: '프로필 수정' },
-  { id: 'settings', label: '앱 설정' },
-  { id: 'support', label: '고객센터 및 서비스 지원' },
-  { id: 'terms', label: '이용약관' },
+  { id: 'profile', label: '프로필 수정', to: '/mypage/profile' },
+  { id: 'settings', label: '앱 설정', to: '/mypage/settings' },
+  { id: 'support', label: '고객센터 및 서비스 지원', to: '/mypage/support' },
+  { id: 'terms', label: '이용약관', to: '/mypage/terms' },
 ]
 
 function ProfileCard() {
@@ -73,8 +74,8 @@ export default function MyPage() {
     navigate('/onboarding', { replace: true })
   }
 
-  function selectMenu(_item: MenuItem) {
-    // TODO: 각 메뉴의 이동 경로가 확정되면 navigate를 연결합니다.
+  function selectMenu(item: MenuItem) {
+    navigate(item.to)
   }
 
   return (

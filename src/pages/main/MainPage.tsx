@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { api, fromApiTime, type TimelineSegment, type TodayRoutineView } from '@/lib/api'
 import { MoonGauge } from './MoonGauge'
 import { RoutineTable, type RoutineRowVM } from './RoutineTable'
@@ -144,6 +144,8 @@ function buildRows(daySegs: DaySegment[], data: TodayRoutineView): RoutineRowVM[
 
 export default function MainPage() {
   const navigate = useNavigate()
+  // 재설계를 막 확정하고 돌아온 경우에만 채워진다(그 외 진입은 빈 배열)
+  const changedTimes: string[] = useLocation().state?.changedTimes ?? []
   const [showReason, setShowReason] = useState(false)
   const [data, setData] = useState<TodayRoutineView | null>(null)
   const [loading, setLoading] = useState(true)
@@ -234,6 +236,7 @@ export default function MainPage() {
           accent={theme.accent}
           dateLabel={data?.date ?? ''}
           rows={data ? buildRows(daySegs, data) : []}
+          changedTimes={changedTimes}
         />
       </div>
 

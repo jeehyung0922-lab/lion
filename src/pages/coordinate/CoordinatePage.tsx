@@ -44,6 +44,15 @@ const SNAPSHOT_ROWS: { key: keyof PreviewResult['before']; label: string }[] = [
   { key: 'subMeal', label: '부 식사' },
 ]
 
+/** 확정된 미리보기에서 실제로 값이 바뀐 시각들 — 홈에서 그 행만 잠깐 표시해준다 */
+function changedTimes(preview: PreviewResult): string[] {
+  return SNAPSHOT_ROWS.filter(
+    (row) => row.key !== 'mode' && preview.before[row.key] !== preview.after[row.key],
+  )
+    .map((row) => preview.after[row.key])
+    .filter(Boolean)
+}
+
 export default function CoordinatePage() {
   const navigate = useNavigate()
   const [messages, setMessages] = useState<Msg[]>([GREETING])
@@ -88,7 +97,7 @@ export default function CoordinatePage() {
       setMessages((m) =>
         m.map((it, i) => (i === index ? { ...it, confirmState: 'confirmed' } : it)),
       )
-      navigate('/home')
+      navigate('/home', { state: { changedTimes: changedTimes(msg.preview) } })
     } catch (e) {
       const expired = e instanceof ApiError && e.status === 410
       setMessages((m) =>

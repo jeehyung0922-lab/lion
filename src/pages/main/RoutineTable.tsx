@@ -22,9 +22,11 @@ interface RoutineTableProps {
   accent: string
   dateLabel: string
   rows: RoutineRowVM[]
+  /** 재설계로 방금 바뀐 시각들. 해당 행만 잠깐 표시된다 */
+  changedTimes?: string[]
 }
 
-export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
+export function RoutineTable({ accent, dateLabel, rows, changedTimes = [] }: RoutineTableProps) {
   const [open, setOpen] = useState<number | null>(null)
 
   return (
@@ -48,12 +50,14 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
       ) : (
         rows.map((row, i) => {
           const isOpen = open === i
+          // row.time 은 "10:00 ~ 16:30" 또는 "17:30" 형태라 시작 부분으로 맞춰본다
+          const changed = changedTimes.some((t) => row.time.startsWith(t))
           return (
             <div key={i}>
               <button
                 type="button"
                 onClick={() => setOpen(isOpen ? null : i)}
-                className="grid w-full grid-cols-[0.7fr_1.4fr_1fr] gap-2 text-left"
+                className={`grid w-full grid-cols-[0.7fr_1.4fr_1fr] gap-2 rounded-lg text-left${changed ? ' settle' : ''}`}
               >
                 <span className={`${cellCls} font-medium text-white`}>{row.category}</span>
                 <span className={`${cellCls} tabular-nums text-white/90`}>{row.time}</span>

@@ -53,23 +53,29 @@ function toAbsoluteSegments(
   return out
 }
 
-/** dayOffset(0=오늘, 1=내일, ...)에 해당하는 00:00~24:00 구간만 잘라 반환. 자정에 걸친 세그먼트는 분리됨 */
+/**
+ * dayOffset(0=오늘, 1=내일, ...)에 해당하는 24시간 구간만 잘라 반환.
+ * ⚠️ "오늘 00:00~24:00"이 아니라 "이 세그먼트 체인이 시작하는 실제 시각부터 24시간"이 기준이다 —
+ * toAbsoluteSegments가 첫 세그먼트의 실제 시각(예: 야간 근무면 22:00)을 절대분의 origin으로 잡기
+ * 때문에, 자정(절대분 0) 기준으로 자르면 야간 근무처럼 하루가 22:00에 시작하는 경우 22:00~24:00만
+ * 남고 그 이후(다음날로 넘어가는 식사·수면 전부)가 잘려나간다. origin을 첫 세그먼트 시작으로 맞춘다.
+ */
 function daySlice(
   abs: { type: string; startAbs: number; endAbs: number }[],
   dayOffset: number,
 ): DaySegment[] {
-  const dayStart = dayOffset * 1440
+  const origin = abs.length > 0 ? abs[0].startAbs : 0
+  const dayStart = origin + dayOffset * 1440
   const dayEnd = dayStart + 1440
   const out: DaySegment[] = []
   for (const s of abs) {
     const clipStart = Math.max(s.startAbs, dayStart)
     const clipEnd = Math.min(s.endAbs, dayEnd)
     if (clipStart < clipEnd) {
-      const endOffset = clipEnd - dayStart
       out.push({
         type: s.type,
-        start: fmtMinutes(clipStart - dayStart),
-        end: endOffset === 1440 ? '24:00' : fmtMinutes(endOffset),
+        start: fmtMinutes(clipStart),
+        end: fmtMinutes(clipEnd),
       })
     }
   }

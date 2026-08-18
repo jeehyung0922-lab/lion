@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { api, toApiTime, ApiError } from '@/lib/api'
+import { api, getUserId, toApiTime, ApiError } from '@/lib/api'
 
 /**
  * 체크인 카드 — 팝업 아님, 무시 가능. 실제 /api/checkins/wake, /clockout 연동.
@@ -40,9 +40,11 @@ const CONDITION_SCORE: Record<string, number> = { 개운함: 5, 보통: 3, 피�
 const LATENCY_MINUTES: Record<string, number> = { 바로: 0, '~30분': 20, '30분+': 45 }
 const HUNGER_SCORE: Record<string, number> = { 없음: 1, 조금: 3, 많음: 5 }
 
-// 백엔드가 "오늘 이미 체크인했는지" 상태를 안 들고 있어서, 재진입 시 카드가 다시 뜨지 않도록 로컬에 기록
+// 백엔드가 "오늘 이미 체크인했는지" 상태를 안 들고 있어서, 재진입 시 카드가 다시 뜨지 않도록 로컬에 기록.
+// userId를 키에 포함해야 한다 — 계정 없이 부스 시연하듯 "새로 시작하기"로 다른 사람이 되어도
+// 같은 날짜면 이전 사람의 체크인 완료 기록을 그대로 물려받아버리는 문제가 있었음(실사용 보고).
 function checkinKey(variant: Variant, date: string): string {
-  return `kinglion.checkin.${variant}.${date}`
+  return `kinglion.checkin.${getUserId() ?? 'anon'}.${variant}.${date}`
 }
 
 /** date가 로딩 중(빈 문자열)일 수 있어 useState 초기값 대신 date 확정 후 effect로 로컬 기록을 읽는다 */

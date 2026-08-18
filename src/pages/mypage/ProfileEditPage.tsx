@@ -1,18 +1,7 @@
-import MyPageDetailLayout, { DetailCard } from './MyPageDetailLayout'
-
-/** kinglion.profile(온보딩 저장값)에서 이름만 읽어옴 — 실패 시 빈 문자열 */
-function loadProfileName(): string {
-  try {
-    const saved = JSON.parse(localStorage.getItem('kinglion.profile') ?? '{}')
-    return typeof saved.name === 'string' ? saved.name : ''
-  } catch {
-    return ''
-  }
-}
+import MyPageDetailLayout, { DetailCard, DetailRow } from './MyPageDetailLayout'
+import { MOCK_MY_PAGE_DATA } from './mockMyPageData'
 
 export default function ProfileEditPage() {
-  const name = loadProfileName()
-
   return (
     <MyPageDetailLayout title="프로필 수정">
       <DetailCard>
@@ -23,18 +12,25 @@ export default function ProfileEditPage() {
             className="h-[72px] w-[72px] shrink-0 rounded object-cover"
           />
           <div className="tracking-[-0.05em]">
-            <p className="text-[12px] text-white/50">프로필 이미지</p>
-            <p className="mt-2 text-[13px]">이미지 변경 기능 준비 중</p>
+            <p className="text-[17px] leading-none">{MOCK_MY_PAGE_DATA.name}</p>
+            <p className="mt-2 text-[12px] leading-[1.4] text-white/50">
+              {MOCK_MY_PAGE_DATA.caption}
+            </p>
           </div>
         </div>
-        <div className="border-t border-white/15 px-5 py-4 tracking-[-0.05em]">
-          <p className="text-[12px] text-white/50">이름</p>
-          <p className="mt-2 text-[13px]">{name || '이름 없음'}</p>
-        </div>
-        <div className="border-t border-white/15 px-5 py-4 tracking-[-0.05em]">
-          <p className="text-[12px] text-white/50">사용자 정보</p>
-          <p className="mt-2 text-[13px]">사용자 정보 수정 기능 준비 중</p>
-        </div>
+        <DetailRow title="이름" description={MOCK_MY_PAGE_DATA.name} />
+        <DetailRow title="출근 준비 시간" description={`${MOCK_MY_PAGE_DATA.prepMinutes}분`} />
+        <DetailRow title="통근 시간" description={`${MOCK_MY_PAGE_DATA.commuteMinutes}분`} />
+        <DetailRow
+          title="목표 수면"
+          description={`${MOCK_MY_PAGE_DATA.targetSleepMinutes / 60}시간`}
+        />
+        <DetailRow title="낮잠 가능 여부" description={MOCK_MY_PAGE_DATA.napAvailable ? '가능' : '불가'} />
+        <DetailRow
+          title="낮잠 가능 시간"
+          description={`${MOCK_MY_PAGE_DATA.napAvailableMinutes}분`}
+        />
+        <DetailRow title="생활 리듬 선호" description={MOCK_MY_PAGE_DATA.rhythmPreference} />
       </DetailCard>
 
       <button

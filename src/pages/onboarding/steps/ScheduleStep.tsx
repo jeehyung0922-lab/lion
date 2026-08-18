@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { StepShell, STEP_GRADIENTS } from '../components/StepShell'
-import { api, asRowLabelError, fileToBase64, type ParseScheduleResponse } from '@/lib/api'
+import { api, ApiError, asRowLabelError, fileToBase64, type ParseScheduleResponse } from '@/lib/api'
 
 interface ScheduleStepProps {
   /** 파싱 성공 시 결과와 함께 다음 단계로 */
   onParsed: (result: ParseScheduleResponse) => void
+  onBack?: () => void
 }
 
 /**
@@ -15,7 +16,7 @@ interface ScheduleStepProps {
  * 단체 근무표라 AI가 본인 행을 특정 못하면 422(ROW_LABEL_REQUIRED)+rowLabels가 오는데,
  * 그 목록에서 사용자가 고른 값으로 myRowLabel을 채워 재호출한다.
  */
-export function ScheduleStep({ onParsed }: ScheduleStepProps) {
+export function ScheduleStep({ onParsed, onBack }: ScheduleStepProps) {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -40,17 +41,21 @@ export function ScheduleStep({ onParsed }: ScheduleStepProps) {
     if (!file) return
     setLoading(true)
     setError(null)
+    setRowLabels(null)
     try {
       const imageBase64 = await fileToBase64(file)
       const result = await api.parseSchedule({ imageBase64, myRowLabel })
-      setRowLabels(null)
       onParsed(result)
     } catch (e) {
       const rowLabelErr = asRowLabelError(e)
       if (rowLabelErr) {
         setRowLabels(rowLabelErr.rowLabels)
-      } else {
+      } else if (e instanceof ApiError) {
+        // 서버가 응답은 했지만(4xx/5xx) 분석에 실패한 경우
         setError('근무표를 분석하지 못했어요. 다시 시도해주세요.')
+      } else {
+        // fetch 자체가 실패 — 서버가 꺼져있거나 네트워크 문제
+        setError('서버에 연결할 수 없어요. 인터넷 연결을 확인하거나 잠시 후 다시 시도해주세요.')
       }
     } finally {
       setLoading(false)
@@ -62,6 +67,7 @@ export function ScheduleStep({ onParsed }: ScheduleStepProps) {
   return (
     <StepShell
       gradient={uploaded ? STEP_GRADIENTS.scheduleUploaded : STEP_GRADIENTS.scheduleIntro}
+      onBack={onBack}
       footer={
         uploaded ? (
           <div className="space-y-2">

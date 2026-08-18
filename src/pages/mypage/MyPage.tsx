@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { clearUserId } from '@/lib/api'
 import { MOCK_MY_PAGE_DATA } from './mockMyPageData'
 
 interface MenuItem {
@@ -70,9 +71,10 @@ export default function MyPage() {
   const navigate = useNavigate()
 
   function restart() {
-    // '새로 시작하기': 온보딩 초기화 후 재진입
+    // '새로 시작하기': 온보딩 초기화 후 재진입 — userId도 지워야 다음 profile 등록이 새 사용자로 발급됨
     localStorage.removeItem('kinglion.onboarded')
     localStorage.removeItem('kinglion.profile')
+    clearUserId()
     navigate('/onboarding', { replace: true })
   }
 

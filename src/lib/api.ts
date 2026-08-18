@@ -19,10 +19,29 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+/** 로그인이 없어 온보딩 profile 등록 응답의 userId가 곧 사용자 식별자 — 이후 모든 요청에 X-User-Id로 붙인다. */
+const USER_ID_KEY = 'kinglion.userId'
+export function getUserId(): string | null {
+  return localStorage.getItem(USER_ID_KEY)
+}
+export function clearUserId(): void {
+  localStorage.removeItem(USER_ID_KEY)
+}
+
+/** skipUserId: 콜렉트북/분석 리포트는 부스 시연용 데모 계정 고정이라 X-User-Id를 절대 붙이면 안 됨(명세 확인). */
+async function request<T>(
+  path: string,
+  options?: RequestInit & { skipUserId?: boolean },
+): Promise<T> {
+  const { skipUserId, ...init } = options ?? {}
+  const userId = skipUserId ? null : getUserId()
   const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) },
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(userId ? { 'X-User-Id': userId } : {}),
+      ...(init.headers ?? {}),
+    },
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -33,9 +52,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return (text ? JSON.parse(text) : undefined) as T
 }
 
-const get = <T>(path: string) => request<T>(path)
-const post = <T>(path: string, body: unknown) =>
-  request<T>(path, { method: 'POST', body: JSON.stringify(body) })
+const get = <T>(path: string, opts?: { skipUserId?: boolean }) => request<T>(path, opts)
+const post = <T>(path: string, body: unknown, opts?: { skipUserId?: boolean }) =>
+  request<T>(path, { method: 'POST', body: JSON.stringify(body), ...opts })
 
 /** "07:00" ↔ "07:00:00" 상호 변환 (백엔드 LocalTime은 "HH:mm:ss" 문자열) */
 export function toApiTime(hhmm: string): ApiLocalTime {
@@ -80,6 +99,12 @@ export interface OkResponse {
   ok: boolean
 }
 
+/** X-User-Id 헤더 없이 호출하면 새 사용자가 발급되며 userId를 돌려준다. */
+export interface ProfileResponse {
+  ok: boolean
+  userId: number
+}
+
 export interface ParseScheduleApiRequest {
   imageBase64: string
   /** 최초 호출 시엔 생략. AI가 행을 특정 못하면 422(ROW_LABEL_REQUIRED)+rowLabels로 돌아오는데,
@@ -105,9 +130,13 @@ export function asRowLabelError(e: unknown): RowLabelRequiredError | null {
   return null
 }
 
-/** 파싱 응답의 시각은 "HH:mm" 평문 문자열(ApiLocalTime 객체 아님) */
+/** 파싱 응답의 시각은 "HH:mm" 평문 문자열(ApiLocalTime 객체 아님).
+ *  재배포 후 백엔드가 원문 라벨(shiftType)과 별도로 자체 정규화 카테고리(mapped)+신뢰도(confidence)를
+ *  같이 준다(실측 확인, 2026-08-19) — 프론트의 별칭 추정(guessShiftType)보다 이 값을 우선 신뢰한다. */
 export interface ShiftTypeDef {
   shiftType: string
+  mapped?: string
+  confidence?: string
   startTime: string
   endTime: string
 }
@@ -286,7 +315,11 @@ export const api = {
   parseSchedule: (req: ParseScheduleApiRequest) =>
     post<ParseScheduleResponse>('/api/onboarding/schedule/parse', req),
   submitSchedule: (req: ScheduleRequest) => post<OkResponse>('/api/onboarding/schedule', req),
-  submitProfile: (req: ProfileRequest) => post<OkResponse>('/api/onboarding/profile', req),
+  submitProfile: async (req: ProfileRequest) => {
+    const result = await post<ProfileResponse>('/api/onboarding/profile', req)
+    localStorage.setItem(USER_ID_KEY, String(result.userId))
+    return result
+  },
 
   // 오늘의 루틴
   getTodayRoutine: () => get<TodayRoutineView>('/api/routines/today'),
@@ -301,10 +334,11 @@ export const api = {
   wakeCheckin: (req: WakeRequest) => post<WakeResponse>('/api/checkins/wake', req),
   clockoutCheckin: (req: ClockOutRequest) => post<ClockOutResponse>('/api/checkins/clockout', req),
 
-  // 리포트
+  // 리포트 — 부스 시연용 데모 계정 고정. X-User-Id를 붙이면 안 됨(명세 확인, skipUserId).
   getWeeklyReport: (from: string, to: string) =>
-    get<WeeklyReportView>(`/api/reports/weekly?from=${from}&to=${to}`),
+    get<WeeklyReportView>(`/api/reports/weekly?from=${from}&to=${to}`, { skipUserId: true }),
   getMonthlyReport: (month: string) =>
-    get<MonthlyReportView>(`/api/reports/monthly?month=${month}`),
-  getDailyReport: (date: string) => get<DailyReportView>(`/api/reports/daily?date=${date}`),
+    get<MonthlyReportView>(`/api/reports/monthly?month=${month}`, { skipUserId: true }),
+  getDailyReport: (date: string) =>
+    get<DailyReportView>(`/api/reports/daily?date=${date}`, { skipUserId: true }),
 }

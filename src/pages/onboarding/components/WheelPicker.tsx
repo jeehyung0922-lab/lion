@@ -103,3 +103,51 @@ export function DurationWheel({ value, onChange }: DurationWheelProps) {
     </div>
   )
 }
+
+interface TimeWheelProps {
+  /** "HH:mm" */
+  value: string
+  onChange: (hhmm: string) => void
+}
+
+const TIME_MINUTE_VALUES = [0, 15, 30, 45]
+
+/** 24시간제 시:분(15분 단위) 2컬럼 휠 — 근무 시작/종료 시각 선택용 (온보딩 DurationWheel과 동일 언어) */
+export function TimeWheel({ value, onChange }: TimeWheelProps) {
+  const [rawH, rawM] = value.split(':').map(Number)
+  const hour = Number.isFinite(rawH) ? rawH : 0
+  const targetMinute = Number.isFinite(rawM) ? rawM : 0
+  const minute = TIME_MINUTE_VALUES.reduce((closest, m) =>
+    Math.abs(m - targetMinute) < Math.abs(closest - targetMinute) ? m : closest,
+  )
+  const hourValues = Array.from({ length: 24 }, (_, i) => i)
+
+  function fmt(h: number, m: number) {
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  }
+
+  return (
+    <div className="relative">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 rounded-xl bg-secondary/60"
+        style={{ height: ITEM_H }}
+      />
+      <div className="flex">
+        <WheelColumn
+          values={hourValues}
+          value={hour}
+          onChange={(h) => onChange(fmt(h, minute))}
+          format={(h) => String(h).padStart(2, '0')}
+          suffix="시"
+        />
+        <WheelColumn
+          values={TIME_MINUTE_VALUES}
+          value={minute}
+          onChange={(m) => onChange(fmt(hour, m))}
+          format={(m) => String(m).padStart(2, '0')}
+          suffix="분"
+        />
+      </div>
+    </div>
+  )
+}

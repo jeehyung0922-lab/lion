@@ -25,9 +25,7 @@ export interface CollectbookResponse {
   maxDailyTravelHours: number
 }
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ??
-  'https://sport-collectibles-adipex-register.trycloudflare.com'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 export async function fetchCollectbook(month: string, signal?: AbortSignal) {
   const response = await fetch(

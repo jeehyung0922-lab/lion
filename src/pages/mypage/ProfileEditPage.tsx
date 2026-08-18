@@ -1,6 +1,18 @@
 import MyPageDetailLayout, { DetailCard } from './MyPageDetailLayout'
 
+/** kinglion.profile(온보딩 저장값)에서 이름만 읽어옴 — 실패 시 빈 문자열 */
+function loadProfileName(): string {
+  try {
+    const saved = JSON.parse(localStorage.getItem('kinglion.profile') ?? '{}')
+    return typeof saved.name === 'string' ? saved.name : ''
+  } catch {
+    return ''
+  }
+}
+
 export default function ProfileEditPage() {
+  const name = loadProfileName()
+
   return (
     <MyPageDetailLayout title="프로필 수정">
       <DetailCard>
@@ -17,7 +29,7 @@ export default function ProfileEditPage() {
         </div>
         <div className="border-t border-white/15 px-5 py-4 tracking-[-0.05em]">
           <p className="text-[12px] text-white/50">이름</p>
-          <p className="mt-2 text-[13px]">User name</p>
+          <p className="mt-2 text-[13px]">{name || '이름 없음'}</p>
         </div>
         <div className="border-t border-white/15 px-5 py-4 tracking-[-0.05em]">
           <p className="text-[12px] text-white/50">사용자 정보</p>

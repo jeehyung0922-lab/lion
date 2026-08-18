@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { X } from 'lucide-react'
+import { api, toApiTime, ApiError } from '@/lib/api'
 
 /**
- * 체크인 카드 (임시) — 팝업 아님, 무시 가능.
+ * 체크인 카드 — 팝업 아님, 무시 가능. 실제 /api/checkins/wake, /clockout 연동.
  * 동작:
  *  - 필수 항목 모두 선택 → 백엔드로 전송 후 카드 사라짐(done)
  *  - X(무응답/무시) → 배지로 축소, 배지 탭하면 언제든 다시 입력
@@ -13,7 +14,6 @@ import { X } from 'lucide-react'
  *      → 컨디션 / 잠드는데 걸린 시간 / 수면 만족도
  *  - 퇴근 체크인: 근무 종료 AND 근무유형 ∈ {NIGHT, EVENING}
  *      → 실제 퇴근시각(공통) / 퇴근 후 허기(NIGHT·EVENING만)
- * TODO: submit()에서 /checkin 로 DailyCheckIn 전송, 실제 노출 트리거 연동.
  */
 type Variant = 'wake' | 'clockout'
 
@@ -30,14 +30,66 @@ const TITLE: Record<Variant, { title: string; sub: string; badge: string }> = {
   },
 }
 
-export function CheckInCard({ variant }: { variant: Variant }) {
-  const [state, setState] = useState<'card' | 'badge' | 'done'>('card')
+// 3단계 선택지 → 백엔드 1~5점 스코어 근사 매핑
+const CONDITION_SCORE: Record<string, number> = { 개운함: 5, 보통: 3, 피곤함: 1 }
+const LATENCY_MINUTES: Record<string, number> = { 바로: 0, '~30분': 20, '30분+': 45 }
+const HUNGER_SCORE: Record<string, number> = { 없음: 1, 조금: 3, 많음: 5 }
+
+// 백엔드가 "오늘 이미 체크인했는지" 상태를 안 들고 있어서, 재진입 시 카드가 다시 뜨지 않도록 로컬에 기록
+function checkinKey(variant: Variant, date: string): string {
+  return `kinglion.checkin.${variant}.${date}`
+}
+
+export function CheckInCard({ variant, date }: { variant: Variant; date: string }) {
+  const [state, setState] = useState<'card' | 'badge' | 'done'>(() =>
+    localStorage.getItem(checkinKey(variant, date)) === '1' ? 'done' : 'card',
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const meta = TITLE[variant]
 
-  function submit(data: Record<string, unknown>) {
-    // TODO: 백엔드로 DailyCheckIn 전송 (POST /checkin)
-    console.log('[checkin submit]', variant, data)
+  function markDone() {
+    localStorage.setItem(checkinKey(variant, date), '1')
     setState('done')
+  }
+
+  async function submitWake(condition: string, latency: string, satisfaction: number) {
+    if (submitting) return
+    setError(null)
+    setSubmitting(true)
+    try {
+      await api.wakeCheckin({
+        date,
+        conditionScore: CONDITION_SCORE[condition],
+        sleepLatencyMinutes: LATENCY_MINUTES[latency],
+        sleepSatisfaction: satisfaction,
+      })
+      markDone()
+    } catch {
+      setError('전송에 실패했어요. 다시 시도해주세요.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function submitClockOut(clockOut: string, hunger: string | null) {
+    if (submitting) return
+    setError(null)
+    setSubmitting(true)
+    try {
+      await api.clockoutCheckin({
+        date,
+        actualClockOut: toApiTime(clockOut),
+        nightHungerScore: hunger ? HUNGER_SCORE[hunger] : undefined,
+      })
+      markDone()
+    } catch (e) {
+      // 근무일이 아니라 스케줄이 없는 등 400은 조용히 무시(폴백), 그 외는 재시도 안내
+      if (e instanceof ApiError && e.status === 400) markDone()
+      else setError('전송에 실패했어요. 다시 시도해주세요.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (state === 'done') return null
@@ -70,26 +122,34 @@ export function CheckInCard({ variant }: { variant: Variant }) {
       </div>
 
       {variant === 'wake' ? (
-        <WakeFields onComplete={submit} />
+        <WakeFields onComplete={submitWake} />
       ) : (
-        <ClockOutFields nightOrEvening onComplete={submit} />
+        <ClockOutFields nightOrEvening onComplete={submitClockOut} />
       )}
+      {error && <p className="mt-2 text-[11px] text-[#ff8fb0]">{error}</p>}
     </div>
   )
 }
 
 /** 기상: 컨디션 / 잠드는데 걸린 시간 / 수면 만족도 — 3개 모두 선택 시 제출 */
-function WakeFields({ onComplete }: { onComplete: (d: Record<string, unknown>) => void }) {
+function WakeFields({
+  onComplete,
+}: {
+  onComplete: (condition: string, latency: string, satisfaction: number) => void
+}) {
   const [condition, setCondition] = useState<string | null>(null)
   const [latency, setLatency] = useState<string | null>(null)
   const [satisfaction, setSatisfaction] = useState<number | null>(null)
 
-  useEffect(() => {
-    if (condition && latency && satisfaction !== null) {
-      onComplete({ condition, latency, satisfaction })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [condition, latency, satisfaction])
+  function pick(next: { condition?: string; latency?: string; satisfaction?: number }) {
+    const c = next.condition ?? condition
+    const l = next.latency ?? latency
+    const s = next.satisfaction ?? satisfaction
+    if (next.condition) setCondition(next.condition)
+    if (next.latency) setLatency(next.latency)
+    if (next.satisfaction) setSatisfaction(next.satisfaction)
+    if (c && l && s !== null) onComplete(c, l, s)
+  }
 
   return (
     <div className="mt-3 space-y-3">
@@ -97,14 +157,18 @@ function WakeFields({ onComplete }: { onComplete: (d: Record<string, unknown>) =
         <Segmented
           options={['개운함', '보통', '피곤함']}
           value={condition}
-          onChange={setCondition}
+          onChange={(v) => pick({ condition: v })}
         />
       </Field>
       <Field label="잠드는데 걸린 시간">
-        <Segmented options={['바로', '~30분', '30분+']} value={latency} onChange={setLatency} />
+        <Segmented
+          options={['바로', '~30분', '30분+']}
+          value={latency}
+          onChange={(v) => pick({ latency: v })}
+        />
       </Field>
       <Field label="수면 만족도">
-        <Rating value={satisfaction} onChange={setSatisfaction} />
+        <Rating value={satisfaction} onChange={(v) => pick({ satisfaction: v })} />
       </Field>
     </div>
   )
@@ -116,17 +180,19 @@ function ClockOutFields({
   onComplete,
 }: {
   nightOrEvening: boolean
-  onComplete: (d: Record<string, unknown>) => void
+  onComplete: (clockOut: string, hunger: string | null) => void
 }) {
   const [clockOut, setClockOut] = useState('')
   const [hunger, setHunger] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (clockOut && (!nightOrEvening || hunger)) {
-      onComplete({ clockOut, hunger })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clockOut, hunger])
+  function setTime(v: string) {
+    setClockOut(v)
+    if (v && (!nightOrEvening || hunger)) onComplete(v, hunger)
+  }
+  function setHungerAndMaybeSubmit(v: string) {
+    setHunger(v)
+    if (clockOut) onComplete(clockOut, v)
+  }
 
   return (
     <div className="mt-3 space-y-3">
@@ -134,13 +200,17 @@ function ClockOutFields({
         <input
           type="time"
           value={clockOut}
-          onChange={(e) => setClockOut(e.target.value)}
+          onChange={(e) => setTime(e.target.value)}
           className="rounded-lg border border-white/10 bg-black/20 px-3 py-1.5 text-sm text-white [color-scheme:dark]"
         />
       </Field>
       {nightOrEvening && (
         <Field label="퇴근 후 허기">
-          <Segmented options={['없음', '조금', '많음']} value={hunger} onChange={setHunger} />
+          <Segmented
+            options={['없음', '조금', '많음']}
+            value={hunger}
+            onChange={setHungerAndMaybeSubmit}
+          />
         </Field>
       )}
     </div>

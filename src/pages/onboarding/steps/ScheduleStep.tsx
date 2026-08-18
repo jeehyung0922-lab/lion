@@ -1,18 +1,26 @@
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { StepShell, STEP_GRADIENTS } from '../components/StepShell'
+import { api, asRowLabelError, fileToBase64, type ParseScheduleResponse } from '@/lib/api'
 
 interface ScheduleStepProps {
-  /** 등록 완료 시 목 파싱 트리거 → AI 결과 단계로 */
-  onRegistered: (previewUrl: string) => void
+  /** 파싱 성공 시 결과와 함께 다음 단계로 */
+  onParsed: (result: ParseScheduleResponse) => void
 }
 
 /**
  * 2. 근무표 등록
  * intro(불러오기) → uploaded(미리보기 후 등록). 사진/파일 업로드만 지원.
+ * 최초 호출은 myRowLabel 없이 /api/onboarding/schedule/parse 호출.
+ * 단체 근무표라 AI가 본인 행을 특정 못하면 422(ROW_LABEL_REQUIRED)+rowLabels가 오는데,
+ * 그 목록에서 사용자가 고른 값으로 myRowLabel을 채워 재호출한다.
  */
-export function ScheduleStep({ onRegistered }: ScheduleStepProps) {
+export function ScheduleStep({ onParsed }: ScheduleStepProps) {
+  const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [rowLabels, setRowLabels] = useState<string[] | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function pickFile() {
@@ -20,9 +28,33 @@ export function ScheduleStep({ onRegistered }: ScheduleStepProps) {
   }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+    const f = e.target.files?.[0]
+    if (!f) return
+    setError(null)
+    setRowLabels(null)
+    setFile(f)
+    setPreview(URL.createObjectURL(f))
+  }
+
+  async function register(myRowLabel?: string) {
     if (!file) return
-    setPreview(URL.createObjectURL(file))
+    setLoading(true)
+    setError(null)
+    try {
+      const imageBase64 = await fileToBase64(file)
+      const result = await api.parseSchedule({ imageBase64, myRowLabel })
+      setRowLabels(null)
+      onParsed(result)
+    } catch (e) {
+      const rowLabelErr = asRowLabelError(e)
+      if (rowLabelErr) {
+        setRowLabels(rowLabelErr.rowLabels)
+      } else {
+        setError('근무표를 분석하지 못했어요. 다시 시도해주세요.')
+      }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const uploaded = preview !== null
@@ -34,14 +66,16 @@ export function ScheduleStep({ onRegistered }: ScheduleStepProps) {
         uploaded ? (
           <div className="space-y-2">
             <Button
-              onClick={() => onRegistered(preview!)}
-              className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15"
+              onClick={() => register()}
+              disabled={loading}
+              className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15 disabled:opacity-50"
             >
-              근무표 등록하기
+              {loading ? '분석 중…' : '근무표 등록하기'}
             </Button>
             {/* 실수로 다른 근무표를 올린 경우 다시 선택 */}
             <Button
               onClick={pickFile}
+              disabled={loading}
               variant="ghost"
               className="h-11 w-full rounded-2xl text-sm font-normal text-white/75 hover:bg-transparent hover:font-bold hover:text-white"
             >
@@ -74,10 +108,32 @@ export function ScheduleStep({ onRegistered }: ScheduleStepProps) {
           <button
             type="button"
             onClick={pickFile}
+            disabled={loading}
             className="aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl border border-white/20 bg-white/90"
           >
             <img src={preview} alt="근무표 미리보기" className="h-full w-full object-cover" />
           </button>
+          {error && <p className="mt-3 text-xs text-[#ff8fb0]">{error}</p>}
+          {rowLabels && (
+            <div className="mt-4 w-full max-w-[280px]">
+              <p className="mb-2 text-center text-xs text-white/70">
+                근무표에서 본인 이름을 선택해주세요
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {rowLabels.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => register(label)}
+                    disabled={loading}
+                    className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white backdrop-blur-sm hover:bg-white/15 disabled:opacity-50"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </StepShell>

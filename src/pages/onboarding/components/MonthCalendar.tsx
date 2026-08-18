@@ -36,6 +36,11 @@ export function MonthCalendar({
   for (let i = 0; i < leadBlanks; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
+  // 근무표에 없는 날짜(cell 없음)도 클릭하면 이 값으로 새로 추가할 수 있게 스텁을 만든다
+  function stubDay(key: string): ScheduleDay {
+    return { date: key, shift: 'OFF' }
+  }
+
   return (
     <div className="rounded-2xl border border-white/10 bg-black/15 p-4 backdrop-blur-md">
       {/* 월 타이틀 + 이동 화살표 */}
@@ -78,9 +83,8 @@ export function MonthCalendar({
             <button
               key={i}
               type="button"
-              disabled={!cell}
-              onClick={() => cell && onSelectDay?.(cell)}
-              className="flex flex-col items-center gap-1 rounded-lg py-1 transition-colors enabled:hover:bg-white/10 disabled:cursor-default"
+              onClick={() => onSelectDay?.(cell ?? stubDay(key))}
+              className="flex flex-col items-center gap-1 rounded-lg py-1 transition-colors hover:bg-white/10"
             >
               <span
                 className={

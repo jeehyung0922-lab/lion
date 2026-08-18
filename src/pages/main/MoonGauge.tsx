@@ -7,8 +7,9 @@ interface MoonGaugeProps {
 }
 
 /**
- * 수면 목표 게이지 — 로드 시 원형 게이지가 0에서 값까지 채워지는 애니메이션.
- * 시안 액센트(시안 #00F7EF → 퍼플 #B500F7) 그라데이션 링.
+ * 이번 주 시차(jetlag) 게이지 — jetlag.weeklyTravelHours를 시각화. 로드 시 원형 게이지가
+ * 0에서 값까지 채워지는 애니메이션. 시안 액센트(시안 #00F7EF → 퍼플 #B500F7) 그라데이션 링.
+ * max=24(하루치 시차)를 기준으로 채움 비율을 계산 — 필요시 조정.
  */
 export function MoonGauge({ hours, max = 12 }: MoonGaugeProps) {
   const [filled, setFilled] = useState(false)
@@ -59,7 +60,9 @@ export function MoonGauge({ hours, max = 12 }: MoonGaugeProps) {
           <Moon className="size-6 text-white" fill="currentColor" />
         </span>
       </div>
-      <span className="text-sm font-semibold tabular-nums text-white">{hours}h</span>
+      <span className="text-[13px] font-medium tracking-[-0.025em] text-white tabular-nums">
+        {hours}h
+      </span>
     </div>
   )
 }

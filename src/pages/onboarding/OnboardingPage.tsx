@@ -14,7 +14,10 @@ import { AiResultStep } from './steps/AiResultStep'
 
 /**
  * 온보딩 (내 담당) — 스플래시(SplashPage)에서 진입.
- * 순서: 개인화 입력 → 근무표 등록·AI 파싱 → AI 분석 확인·보정 → 프로필/근무표 등록(API) → 메인
+ * 순서: 근무표 등록·AI 파싱 → AI 분석 확인·보정 → 개인화 입력 → 프로필/근무표 등록(API) → 메인
+ * ⚠️ 근무표를 먼저 받는다 — 사용자가 이 앱이 뭘 해주는지 본 뒤에 개인정보를 요구하기 위해서다.
+ *    submitProfile은 원래부터 마지막(handleSubmit)에만 호출되고 parseSchedule은 userId 없이 불리므로,
+ *    단계 순서만 바꾸면 되고 백엔드 계약은 그대로다.
  * 저장된 프로필이 있으면 기존값을 프리필해 확인·수정 가능.
  * 단체 근무표 대응: ScheduleStep이 myRowLabel 없이 최초 파싱을 시도하고,
  * AI가 본인 행을 특정 못하면(422 ROW_LABEL_REQUIRED) 감지된 rowLabels 중 고른 값으로 재호출한다.
@@ -37,9 +40,10 @@ function isShiftType(v: string | undefined): v is ShiftType {
 }
 
 /**
- * 파싱 응답(shiftTypes)의 shiftType은 원문 라벨("주간","오후" 등)이고, 재배포 후 백엔드가
- * 자체 정규화 카테고리(mapped: DAY/EVENING/NIGHT/OFF)도 같이 준다(실측 확인) — 이 값을 우선
- * 신뢰하고, 없거나 알 수 없는 값이면 프론트의 별칭 추정(guessShiftType)으로 폴백한다.
+ * 파싱 응답(shiftTypes)의 shiftType은 원문 라벨("주간","오후" 등)이다. 백엔드가 자체 정규화
+ * 카테고리(mapped: DAY/EVENING/NIGHT/OFF)를 같이 주면 그 값을 우선 신뢰한다.
+ * ⚠️ 다만 로컬 백엔드 실측(2026-08-18)에서는 mapped 없이 {shiftType,startTime,endTime}만 왔다 —
+ *    즉 프론트 별칭 추정(guessShiftType)이 실질적인 매핑 경로다. 별칭 표 누락이 곧 오매핑이 된다.
  * AiResultStep에서 사용자가 최종 확인·보정한다.
  */
 function toShiftTypeInfos(defs: ParseScheduleResponse['shiftTypes']): ShiftTypeInfo[] {
@@ -111,10 +115,17 @@ export default function OnboardingPage() {
     const shiftTypes = toShiftTypeInfos(result.shiftTypes)
     const schedule = toScheduleDays(result.shifts, shiftTypes)
     setParsed({ shiftTypes, schedule })
+    setStep(1)
+  }
+
+  /** 확인·보정 결과를 담아두고 개인화 입력으로. 실제 등록은 마지막 단계에서 한 번에 한다. */
+  function handleAiConfirm(shiftTypes: ShiftTypeInfo[], schedule: ScheduleDay[]) {
+    setParsed({ shiftTypes, schedule })
     setStep(2)
   }
 
-  async function handleConfirm(shiftTypes: ShiftTypeInfo[], schedule: ScheduleDay[]) {
+  async function handleSubmit() {
+    const { shiftTypes, schedule } = parsed
     setSubmitting(true)
     setSubmitError(null)
     try {
@@ -163,33 +174,37 @@ export default function OnboardingPage() {
 
   return (
     <div className="relative h-full">
-      {step === 0 && (
-        <PersonalizeStep
-          form={form}
-          update={update}
-          onNext={() => setStep(1)}
-          onBack={() => navigate('/')}
-        />
-      )}
-      {step === 1 && <ScheduleStep onParsed={handleParsed} onBack={() => setStep(0)} />}
-      {step === 2 && (
-        <>
+      {/* key={step} — 단계가 바뀔 때마다 래퍼가 새로 마운트돼 step-in 애니메이션이 다시 재생된다 */}
+      <div key={step} className="step-in h-full">
+        {step === 0 && <ScheduleStep onParsed={handleParsed} onBack={() => navigate('/')} />}
+        {step === 1 && (
           <AiResultStep
             initialShiftTypes={parsed.shiftTypes}
             initialSchedule={parsed.schedule}
-            onConfirm={handleConfirm}
-            onBack={() => setStep(1)}
+            onConfirm={handleAiConfirm}
+            onBack={() => setStep(0)}
           />
-          {(submitting || submitError) && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-24 flex justify-center px-6">
-              <div
-                className={`rounded-xl border border-white/15 bg-black/70 px-4 py-2.5 text-xs text-white backdrop-blur-md transition-opacity duration-500 ${errorFading ? 'opacity-0' : 'opacity-100'}`}
-              >
-                {submitting ? '등록하는 중…' : submitError}
-              </div>
-            </div>
-          )}
-        </>
+        )}
+        {step === 2 && (
+          <PersonalizeStep
+            form={form}
+            update={update}
+            onNext={handleSubmit}
+            onBack={() => setStep(1)}
+            submitting={submitting}
+          />
+        )}
+      </div>
+
+      {/* 제출 중 표시는 버튼 라벨이 맡는다 — 토스트는 에러 전용(둘 다 띄우면 같은 말이 두 번 뜬다) */}
+      {submitError && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-24 flex justify-center px-6">
+          <div
+            className={`rounded-xl border border-white/15 bg-black/70 px-4 py-2.5 text-xs text-white backdrop-blur-md transition-opacity duration-500 ${errorFading ? 'opacity-0' : 'opacity-100'}`}
+          >
+            {submitError}
+          </div>
+        </div>
       )}
     </div>
   )

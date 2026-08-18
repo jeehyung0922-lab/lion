@@ -176,8 +176,8 @@ export interface JetlagView {
   utcOffset: number
   city: string
   message: string
-  weeklyTravelHours: number
-  weeklyMessage: string
+  dailyTravelHours: number
+  dailyMessage: string
 }
 export interface SleepDeficitView {
   deficitMinutes: number

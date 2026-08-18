@@ -115,9 +115,13 @@ export function ScheduleStep({ onParsed, onBack }: ScheduleStepProps) {
             type="button"
             onClick={pickFile}
             disabled={loading}
-            className="aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl border border-white/20 bg-white/90"
+            className="flex w-full items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/90"
           >
-            <img src={preview} alt="근무표 미리보기" className="h-full w-full object-cover" />
+            <img
+              src={preview}
+              alt="근무표 미리보기"
+              className="max-h-[55vh] h-auto max-w-full object-contain"
+            />
           </button>
           {error && <p className="mt-3 text-xs text-[#ff8fb0]">{error}</p>}
           {rowLabels && (

@@ -28,7 +28,7 @@ export default function MyPageDetailLayout({ title, children }: MyPageDetailLayo
         <header className="relative flex h-8 items-center justify-center">
           <button
             type="button"
-            onClick={() => navigate('/mypage')}
+            onClick={() => navigate('/mypage', { viewTransition: true })}
             aria-label="MyPage로 돌아가기"
             className="absolute left-0 flex h-8 items-center gap-1 text-[13px] text-white/70 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-white/50"
           >

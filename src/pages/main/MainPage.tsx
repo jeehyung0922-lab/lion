@@ -344,11 +344,11 @@ export default function MainPage() {
                 boxShadow: '0 0 14px 2px rgba(255,255,255,0.55)',
               }}
             >
-              {data.jetlag.weeklyMessage}
+              {data.jetlag.dailyMessage}
             </button>
           )}
         </div>
-        <MoonGauge hours={data?.jetlag.weeklyTravelHours ?? 0} max={24} />
+        <MoonGauge hours={data?.jetlag.dailyTravelHours ?? 0} max={24} />
       </div>
 
       {/* 체크인을 닫으면 생기는 뱃지 — 표 위, 원래 자리 그대로 */}

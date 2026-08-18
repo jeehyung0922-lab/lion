@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 
 /**
  * 오늘의 루틴 표 — 3열(구분/시각/내용). 각 박스 클릭 시 드롭다운으로 근거 표시.
@@ -7,12 +8,16 @@ import { useState } from 'react'
  *    MainPage.buildRows()가 카테고리별로 관련 있는 조각만 골라 row.reasons에 담아준다.
  * ⚠️ 백엔드 timeline이 실제론 하루보다 길지만(이슈 5), 여기선 오늘(00:00~24:00) 몫만 보여준다
  *    — 그래서 내일로 넘어가는 주요식사/주수면 등은 여기 안 보일 수 있음(의도된 트레이드오프).
+ *
+ * row.status(지금 시각 기준 past/current/upcoming)로 묶어 지난·남은 일정은 접어두고
+ * 지금 진행 중인 것만 항상 펼쳐 보여준다 — 접힌 그룹은 "N개" 배지를 눌러 펼친다.
  */
 export interface RoutineRowVM {
   category: string
   time: string
   detail: string
   reasons: string[]
+  status: 'past' | 'current' | 'upcoming'
 }
 
 const cellCls =
@@ -26,6 +31,80 @@ interface RoutineTableProps {
 
 export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
   const [open, setOpen] = useState<number | null>(null)
+  const [showPast, setShowPast] = useState(false)
+  const [showUpcoming, setShowUpcoming] = useState(false)
+
+  const withIndex = rows.map((row, i) => ({ row, i }))
+  const past = withIndex.filter((x) => x.row.status === 'past')
+  const current = withIndex.filter((x) => x.row.status === 'current')
+  const upcoming = withIndex.filter((x) => x.row.status === 'upcoming')
+
+  function renderRow(row: RoutineRowVM, i: number) {
+    const isOpen = open === i
+    return (
+      <div key={i}>
+        <button
+          type="button"
+          onClick={() => setOpen(isOpen ? null : i)}
+          className="grid w-full grid-cols-[0.7fr_1.4fr_1fr] gap-2 text-left"
+        >
+          <span className={`${cellCls} font-medium text-white`}>{row.category}</span>
+          <span className={`${cellCls} tabular-nums text-white/90`}>{row.time}</span>
+          <span className={`${cellCls} text-white/90`}>{row.detail}</span>
+        </button>
+
+        {/* 근거 드롭다운 (이 행과 관련된 근거만) */}
+        {isOpen && row.reasons.length > 0 && (
+          <div className="mt-2 flex gap-3 rounded-xl border border-white/20 bg-[#111111]/35 p-3 backdrop-blur-md">
+            <span
+              className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+              style={{ background: accent }}
+            >
+              AI
+            </span>
+            <div className="space-y-1">
+              {row.reasons.map((r, ri) => (
+                <p
+                  key={ri}
+                  className="text-[12px] leading-relaxed tracking-[-0.025em] whitespace-pre-line text-white/85"
+                >
+                  {r}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function GroupToggle({
+    label,
+    count,
+    open: groupOpen,
+    onToggle,
+  }: {
+    label: string
+    count: number
+    open: boolean
+    onToggle: () => void
+  }) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-transparent px-2 py-1.5 text-left text-[12px] tracking-[-0.025em] text-white/55"
+      >
+        <span>
+          {label} {count}개
+        </span>
+        <ChevronDown
+          className={`size-3.5 transition-transform ${groupOpen ? 'rotate-180' : ''}`}
+          strokeWidth={2}
+        />
+      </button>
+    )
+  }
 
   return (
     <div className="space-y-2">
@@ -42,48 +121,33 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
         </span>
       </div>
 
-      {/* 루틴 행 */}
+      {/* 루틴 행 — 지난 일정(접힘) / 지금(항상 펼침) / 남은 일정(접힘) */}
       {rows.length === 0 ? (
         <p className="py-6 text-center text-sm text-white/45">아직 오늘의 루틴이 없어요.</p>
       ) : (
-        rows.map((row, i) => {
-          const isOpen = open === i
-          return (
-            <div key={i}>
-              <button
-                type="button"
-                onClick={() => setOpen(isOpen ? null : i)}
-                className="grid w-full grid-cols-[0.7fr_1.4fr_1fr] gap-2 text-left"
-              >
-                <span className={`${cellCls} font-medium text-white`}>{row.category}</span>
-                <span className={`${cellCls} tabular-nums text-white/90`}>{row.time}</span>
-                <span className={`${cellCls} text-white/90`}>{row.detail}</span>
-              </button>
+        <>
+          {past.length > 0 && (
+            <GroupToggle
+              label="지난 일정"
+              count={past.length}
+              open={showPast}
+              onToggle={() => setShowPast((v) => !v)}
+            />
+          )}
+          {showPast && past.map(({ row, i }) => renderRow(row, i))}
 
-              {/* 근거 드롭다운 (이 행과 관련된 근거만) */}
-              {isOpen && row.reasons.length > 0 && (
-                <div className="mt-2 flex gap-3 rounded-xl border border-white/20 bg-[#111111]/35 p-3 backdrop-blur-md">
-                  <span
-                    className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white"
-                    style={{ background: accent }}
-                  >
-                    AI
-                  </span>
-                  <div className="space-y-1">
-                    {row.reasons.map((r, ri) => (
-                      <p
-                        key={ri}
-                        className="text-[12px] leading-relaxed tracking-[-0.025em] whitespace-pre-line text-white/85"
-                      >
-                        {r}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )
-        })
+          {current.map(({ row, i }) => renderRow(row, i))}
+
+          {upcoming.length > 0 && (
+            <GroupToggle
+              label="남은 일정"
+              count={upcoming.length}
+              open={showUpcoming}
+              onToggle={() => setShowUpcoming((v) => !v)}
+            />
+          )}
+          {showUpcoming && upcoming.map(({ row, i }) => renderRow(row, i))}
+        </>
       )}
     </div>
   )

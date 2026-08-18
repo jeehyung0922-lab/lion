@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 
 /**
@@ -9,8 +9,14 @@ import { ChevronDown } from 'lucide-react'
  * ⚠️ 백엔드 timeline이 실제론 하루보다 길지만(이슈 5), 여기선 오늘(00:00~24:00) 몫만 보여준다
  *    — 그래서 내일로 넘어가는 주요식사/주수면 등은 여기 안 보일 수 있음(의도된 트레이드오프).
  *
- * row.status(지금 시각 기준 past/current/upcoming)로 묶어 지난·남은 일정은 접어두고
- * 지금 진행 중인 것만 항상 펼쳐 보여준다 — 접힌 그룹은 "N개" 배지를 눌러 펼친다.
+ * row.status(지금 시각 기준 past/current/upcoming)로 지난·남은 일정은 각각 접어두고, 지금
+ * 진행 중인 것만 항상 보여준다. 접힌 그룹을 펼치면 위에서 아래로 순서대로 나타나고(스태거),
+ * 다시 접으면 역순으로 사라진다 — CSS grid-template-rows 0fr↔1fr 트릭으로 JS 높이 측정 없이 처리.
+ *
+ * ⚠️ GroupToggle/CollapsibleGroup은 반드시 모듈 스코프에 둔다. RoutineTable 안에서 정의하면
+ *    부모(홈)가 카운트다운 때문에 매초 리렌더될 때마다 "새 컴포넌트 타입"이 돼서 React가 DOM을
+ *    통째로 버리고 다시 마운트한다 — 그러면 클릭으로 상태는 바뀌어도 트랜지션이 재생될 새도 없이
+ *    다음 초의 리렌더가 지워버려 애니메이션이 아예 안 보이는 것처럼 된다(실측으로 확인한 버그).
  */
 export interface RoutineRowVM {
   category: string
@@ -22,6 +28,80 @@ export interface RoutineRowVM {
 
 const cellCls =
   'flex items-center justify-center rounded-lg border border-white/20 bg-[#111111]/25 px-2 py-3 text-center text-[13px] tracking-[-0.025em] backdrop-blur-md'
+
+function GroupToggle({
+  label,
+  count,
+  open,
+  onToggle,
+}: {
+  label: string
+  count: number
+  open: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-transparent px-2 py-1.5 text-left text-[12px] tracking-[-0.025em] text-white/55"
+    >
+      <span>
+        {label} {count}개
+      </span>
+      <ChevronDown
+        className={`size-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+        strokeWidth={2}
+      />
+    </button>
+  )
+}
+
+/**
+ * 접었다 펼치는 그룹 하나(지난 일정 / 남은 일정 공용) — 토글 + grid-rows 0fr↔1fr로 높이를
+ * 부드럽게 접고, 안쪽 각 행은 index만큼 딜레이를 줘서 순서대로 쏟아지듯 나타나게 한다.
+ */
+function CollapsibleGroup({
+  label,
+  items,
+  open,
+  onToggle,
+  renderRow,
+}: {
+  label: string
+  items: { row: RoutineRowVM; i: number }[]
+  open: boolean
+  onToggle: () => void
+  renderRow: (row: RoutineRowVM, i: number) => ReactNode
+}) {
+  if (items.length === 0) return null
+  return (
+    <>
+      <GroupToggle label={label} count={items.length} open={open} onToggle={onToggle} />
+      <div
+        className={`grid overflow-hidden transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${
+          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className="min-h-0 space-y-2">
+          {items.map(({ row, i }, idx) => (
+            <div
+              key={i}
+              className={`transition-all duration-300 ease-out motion-reduce:transition-none ${
+                open ? 'translate-y-0 opacity-100' : '-translate-y-1.5 opacity-0'
+              }`}
+              style={{
+                transitionDelay: open ? `${idx * 40}ms` : `${(items.length - 1 - idx) * 30}ms`,
+              }}
+            >
+              {renderRow(row, i)}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
 
 interface RoutineTableProps {
   accent: string
@@ -39,6 +119,8 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
   const current = withIndex.filter((x) => x.row.status === 'current')
   const upcoming = withIndex.filter((x) => x.row.status === 'upcoming')
 
+  // JSX 태그(<renderRow/>)로 쓰지 않고 함수처럼 호출만 하므로 컴포넌트 타입 문제가 없다 —
+  // React는 이게 반환하는 <div key={i}>만 보고, "renderRow"라는 타입 자체는 보지 않는다.
   function renderRow(row: RoutineRowVM, i: number) {
     const isOpen = open === i
     return (
@@ -78,34 +160,6 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
     )
   }
 
-  function GroupToggle({
-    label,
-    count,
-    open: groupOpen,
-    onToggle,
-  }: {
-    label: string
-    count: number
-    open: boolean
-    onToggle: () => void
-  }) {
-    return (
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-transparent px-2 py-1.5 text-left text-[12px] tracking-[-0.025em] text-white/55"
-      >
-        <span>
-          {label} {count}개
-        </span>
-        <ChevronDown
-          className={`size-3.5 transition-transform ${groupOpen ? 'rotate-180' : ''}`}
-          strokeWidth={2}
-        />
-      </button>
-    )
-  }
-
   return (
     <div className="space-y-2">
       {/* 헤더: TODAY + 날짜 */}
@@ -121,32 +175,28 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
         </span>
       </div>
 
-      {/* 루틴 행 — 지난 일정(접힘) / 지금(항상 펼침) / 남은 일정(접힘) */}
+      {/* 루틴 행 — 지난·남은 일정은 접힘(스태거 애니메이션), 지금 일정만 항상 보임 */}
       {rows.length === 0 ? (
         <p className="py-6 text-center text-sm text-white/45">아직 오늘의 루틴이 없어요.</p>
       ) : (
         <>
-          {past.length > 0 && (
-            <GroupToggle
-              label="지난 일정"
-              count={past.length}
-              open={showPast}
-              onToggle={() => setShowPast((v) => !v)}
-            />
-          )}
-          {showPast && past.map(({ row, i }) => renderRow(row, i))}
+          <CollapsibleGroup
+            label="지난 일정"
+            items={past}
+            open={showPast}
+            onToggle={() => setShowPast((v) => !v)}
+            renderRow={renderRow}
+          />
 
           {current.map(({ row, i }) => renderRow(row, i))}
 
-          {upcoming.length > 0 && (
-            <GroupToggle
-              label="남은 일정"
-              count={upcoming.length}
-              open={showUpcoming}
-              onToggle={() => setShowUpcoming((v) => !v)}
-            />
-          )}
-          {showUpcoming && upcoming.map(({ row, i }) => renderRow(row, i))}
+          <CollapsibleGroup
+            label="남은 일정"
+            items={upcoming}
+            open={showUpcoming}
+            onToggle={() => setShowUpcoming((v) => !v)}
+            renderRow={renderRow}
+          />
         </>
       )}
     </div>

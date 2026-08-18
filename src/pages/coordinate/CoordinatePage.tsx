@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Send } from 'lucide-react'
 import { api, ApiError, type PreviewResult } from '@/lib/api'
 
@@ -46,8 +46,11 @@ const SNAPSHOT_ROWS: { key: keyof PreviewResult['before']; label: string }[] = [
 
 export default function CoordinatePage() {
   const navigate = useNavigate()
+  // 홈의 예시 칩으로 들어오면 그 문구가 채워진 채로 열린다 — 사용자는 전송만 누르면 된다
+  const location = useLocation()
+  const prefill = (location.state as { prefill?: string } | null)?.prefill ?? ''
   const [messages, setMessages] = useState<Msg[]>([GREETING])
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(prefill)
   const [typing, setTyping] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 

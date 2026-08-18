@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, fromApiTime, type TimelineSegment, type TodayRoutineView } from '@/lib/api'
+import { Send } from 'lucide-react'
+import { api, ApiError, fromApiTime, type TimelineSegment, type TodayRoutineView } from '@/lib/api'
 import { MoonGauge } from './MoonGauge'
 import { RoutineTable, type RoutineRowVM } from './RoutineTable'
 import { CheckInBadge, CheckInCard, useCheckinState } from './CheckInCard'
@@ -18,6 +19,16 @@ import { MAIN_THEMES, MODE_TO_THEME } from './mainTheme'
  * 시작~종료를 그대로 보여줄 때 오해를 부르므로, 자정(오늘 00:00~24:00) 기준으로 잘라서
  * 오늘 몫만 보여준다 — 그 결과 내일로 넘어가는 주요식사/주수면 등은 오늘 화면엔 안 보일 수 있음.
  */
+/**
+ * 재설계 예시 칩 — 버튼 하나보다 "무엇을 말할 수 있는지"를 알려주는 쪽이 진입률이 높다.
+ * 누르면 text가 채워진 채로 대화가 열려, 사용자는 전송만 누르면 된다.
+ */
+const REPLAN_CHIPS: { label: string; text: string }[] = [
+  { label: '퇴근 지연', text: '퇴근이 예정보다 늦어졌어요' },
+  { label: '못 잤어요', text: '잠을 거의 못 잤어요' },
+  { label: '일정 추가', text: '오늘 일정이 하나 더 생겼어요' },
+]
+
 interface DaySegment {
   type: string
   start: string // HH:mm, 그 날짜 안으로 자정 기준 clip됨
@@ -148,6 +159,8 @@ export default function MainPage() {
   const [data, setData] = useState<TodayRoutineView | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** 등록된 근무표에 오늘 날짜가 없는 상태(지난 달 표만 올린 경우) — 서버 장애와는 다르게 안내한다 */
+  const [outOfRange, setOutOfRange] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -157,8 +170,11 @@ export default function MainPage() {
       .then((res) => {
         if (!cancelled) setData(res)
       })
-      .catch(() => {
-        if (!cancelled) setError('오늘의 루틴을 불러오지 못했어요.')
+      .catch((e) => {
+        if (cancelled) return
+        // 404 = 근무표에 오늘 날짜가 없다는 뜻. "불러오지 못했어요"로 뭉뚱그리면 사용자가 할 일을 모른다.
+        if (e instanceof ApiError && e.status === 404) setOutOfRange(true)
+        else setError('오늘의 루틴을 불러오지 못했어요.')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -203,6 +219,22 @@ export default function MainPage() {
       )}
 
       {error && <p className="mt-4 text-xs text-[#ff8fb0]">{error}</p>}
+
+      {outOfRange && (
+        <div className="mt-4 rounded-xl border border-white/20 bg-[#111111]/25 p-4 backdrop-blur-md">
+          <p className="text-[13px] leading-relaxed tracking-[-0.025em] text-white/85">
+            등록된 근무표에 오늘 날짜가 없어요.
+            <br />
+            이번 달 근무표를 올리면 오늘의 리듬을 만들어드릴게요.
+          </p>
+          <button
+            onClick={() => navigate('/onboarding', { viewTransition: true })}
+            className="mt-3 w-full rounded-lg border border-white/20 bg-white/10 py-2.5 text-[13px] font-medium tracking-[-0.025em] text-white transition-colors hover:bg-white/15"
+          >
+            근무표 등록하기
+          </button>
+        </div>
+      )}
 
       {/* 시차 표시 + 무월 게이지 */}
       <div className="mt-7 flex items-start justify-between gap-4">
@@ -266,13 +298,29 @@ export default function MainPage() {
         </div>
       )}
 
-      {/* 일정 조율 (AI 대화) */}
-      <button
-        onClick={() => navigate('/coordinate', { viewTransition: true })}
-        className="mt-4 w-full rounded-xl border border-white/20 bg-[#111111]/25 py-3.5 text-[13px] font-medium tracking-[-0.025em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
-      >
-        일정 조율하기 +
-      </button>
+      {/* 재설계 진입 — 예시 칩 + 입력줄. 칩은 그 문구를 채운 채로 대화를 연다. */}
+      <div className="mt-4 space-y-2">
+        <div className="flex gap-2">
+          {REPLAN_CHIPS.map((chip) => (
+            <button
+              key={chip.label}
+              onClick={() =>
+                navigate('/coordinate', { viewTransition: true, state: { prefill: chip.text } })
+              }
+              className="flex-1 rounded-full border border-white/20 bg-[#111111]/25 py-2 text-[12px] tracking-[-0.03em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => navigate('/coordinate', { viewTransition: true })}
+          className="flex w-full items-center justify-between rounded-xl border border-white/20 bg-[#111111]/25 px-4 py-3.5 text-[13px] tracking-[-0.025em] backdrop-blur-md transition-colors hover:bg-[#111111]/40"
+        >
+          <span className="text-white/55">바뀐 일이 있으면 적어주세요</span>
+          <Send className="size-4 text-white/55" strokeWidth={2} />
+        </button>
+      </div>
     </div>
   )
 }

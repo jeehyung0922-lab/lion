@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, fromApiTime, type TimelineSegment, type TodayRoutineView } from '@/lib/api'
 import { MoonGauge } from './MoonGauge'
 import { RoutineTable, type RoutineRowVM } from './RoutineTable'
-import { CheckInCard } from './CheckInCard'
+import { CheckInBadge, CheckInCard, useCheckinState } from './CheckInCard'
 import { MAIN_THEMES, MODE_TO_THEME } from './mainTheme'
 
 /**
@@ -171,6 +171,13 @@ export default function MainPage() {
   const theme = MAIN_THEMES[MODE_TO_THEME[data?.mode ?? 'OFF_RHYTHM_MAINTAIN']]
   const showClockoutCheckin = data?.mode === 'NIGHT' || data?.mode === 'EVENING'
 
+  const [wakeCheckin, setWakeCheckin] = useCheckinState('wake', data?.date ?? '')
+  const [clockoutCheckin, setClockoutCheckin] = useCheckinState('clockout', data?.date ?? '')
+  const anyCheckinBadge =
+    wakeCheckin === 'badge' || (showClockoutCheckin && clockoutCheckin === 'badge')
+  const anyCheckinCard =
+    wakeCheckin === 'card' || (showClockoutCheckin && clockoutCheckin === 'card')
+
   const absSegments = useMemo(() => (data ? toAbsoluteSegments(data.timeline) : []), [data])
   const daySegs = useMemo(() => daySlice(absSegments, 0), [absSegments])
 
@@ -220,11 +227,13 @@ export default function MainPage() {
         <MoonGauge hours={data?.jetlag.weeklyTravelHours ?? 0} max={24} />
       </div>
 
-      {/* 기상/퇴근 체크인 (무시 가능) */}
-      {data && (
+      {/* 체크인을 닫으면 생기는 뱃지 — 표 위, 원래 자리 그대로 */}
+      {data && anyCheckinBadge && (
         <div className="mt-6 space-y-2">
-          <CheckInCard variant="wake" date={data.date} />
-          {showClockoutCheckin && <CheckInCard variant="clockout" date={data.date} />}
+          <CheckInBadge variant="wake" state={wakeCheckin} onChange={setWakeCheckin} />
+          {showClockoutCheckin && (
+            <CheckInBadge variant="clockout" state={clockoutCheckin} onChange={setClockoutCheckin} />
+          )}
         </div>
       )}
 
@@ -236,6 +245,26 @@ export default function MainPage() {
           rows={data ? buildRows(daySegs, data) : []}
         />
       </div>
+
+      {/* 기상/퇴근 체크인 입력 폼 (무시 가능) — 표 아래로 이동 */}
+      {data && anyCheckinCard && (
+        <div className="mt-6 space-y-2">
+          <CheckInCard
+            variant="wake"
+            date={data.date}
+            state={wakeCheckin}
+            onChange={setWakeCheckin}
+          />
+          {showClockoutCheckin && (
+            <CheckInCard
+              variant="clockout"
+              date={data.date}
+              state={clockoutCheckin}
+              onChange={setClockoutCheckin}
+            />
+          )}
+        </div>
+      )}
 
       {/* 일정 조율 (AI 대화) */}
       <button

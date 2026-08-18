@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { api, toApiTime, ApiError } from '@/lib/api'
 
@@ -14,8 +14,13 @@ import { api, toApiTime, ApiError } from '@/lib/api'
  *      → 컨디션 / 잠드는데 걸린 시간 / 수면 만족도
  *  - 퇴근 체크인: 근무 종료 AND 근무유형 ∈ {NIGHT, EVENING}
  *      → 실제 퇴근시각(공통) / 퇴근 후 허기(NIGHT·EVENING만)
+ *
+ * 카드(입력 폼)와 배지(닫았을 때)를 화면의 서로 다른 위치에 각각 띄울 수 있도록
+ * 상태(state)를 MainPage가 들고 있게 분리했다 — useCheckinState로 상태를 만들고,
+ * CheckInBadge/CheckInCard에 각각 내려준다.
  */
 type Variant = 'wake' | 'clockout'
+export type CheckinState = 'card' | 'badge' | 'done'
 
 const TITLE: Record<Variant, { title: string; sub: string; badge: string }> = {
   wake: {
@@ -40,17 +45,58 @@ function checkinKey(variant: Variant, date: string): string {
   return `kinglion.checkin.${variant}.${date}`
 }
 
-export function CheckInCard({ variant, date }: { variant: Variant; date: string }) {
-  const [state, setState] = useState<'card' | 'badge' | 'done'>(() =>
-    localStorage.getItem(checkinKey(variant, date)) === '1' ? 'done' : 'card',
+/** date가 로딩 중(빈 문자열)일 수 있어 useState 초기값 대신 date 확정 후 effect로 로컬 기록을 읽는다 */
+export function useCheckinState(
+  variant: Variant,
+  date: string,
+): [CheckinState, (next: CheckinState) => void] {
+  const [state, setState] = useState<CheckinState>('card')
+  useEffect(() => {
+    if (!date) return
+    setState(localStorage.getItem(checkinKey(variant, date)) === '1' ? 'done' : 'card')
+  }, [variant, date])
+  return [state, setState]
+}
+
+/** 체크인을 닫았을 때(badge)만 보여주는 축소 배지 — 표 위, 원래 자리에 그대로 둔다 */
+export function CheckInBadge({
+  variant,
+  state,
+  onChange,
+}: {
+  variant: Variant
+  state: CheckinState
+  onChange: (next: CheckinState) => void
+}) {
+  if (state !== 'badge') return null
+  return (
+    <button
+      onClick={() => onChange('card')}
+      className="rounded-full border border-white/15 bg-[#111111]/30 px-3 py-1.5 text-xs text-white/80 backdrop-blur-md hover:bg-[#111111]/45"
+    >
+      {TITLE[variant].badge}
+    </button>
   )
+}
+
+export function CheckInCard({
+  variant,
+  date,
+  state,
+  onChange,
+}: {
+  variant: Variant
+  date: string
+  state: CheckinState
+  onChange: (next: CheckinState) => void
+}) {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const meta = TITLE[variant]
 
   function markDone() {
     localStorage.setItem(checkinKey(variant, date), '1')
-    setState('done')
+    onChange('done')
   }
 
   async function submitWake(condition: string, latency: string, satisfaction: number) {
@@ -92,18 +138,7 @@ export function CheckInCard({ variant, date }: { variant: Variant; date: string 
     }
   }
 
-  if (state === 'done') return null
-
-  if (state === 'badge') {
-    return (
-      <button
-        onClick={() => setState('card')}
-        className="rounded-full border border-white/15 bg-[#111111]/30 px-3 py-1.5 text-xs text-white/80 backdrop-blur-md hover:bg-[#111111]/45"
-      >
-        {meta.badge}
-      </button>
-    )
-  }
+  if (state !== 'card') return null
 
   return (
     <div className="rounded-2xl border border-white/20 bg-[#111111]/25 p-4 backdrop-blur-md">
@@ -113,7 +148,7 @@ export function CheckInCard({ variant, date }: { variant: Variant; date: string 
           <p className="mt-0.5 text-xs text-white/60">{meta.sub}</p>
         </div>
         <button
-          onClick={() => setState('badge')}
+          onClick={() => onChange('badge')}
           aria-label="체크인 닫기"
           className="rounded-md p-1 text-white/50 hover:bg-white/10 hover:text-white"
         >

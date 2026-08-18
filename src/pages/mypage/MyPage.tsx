@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { clearUserId } from '@/lib/api'
+import { MOCK_MY_PAGE_DATA } from './mockMyPageData'
 
 interface MenuItem {
   id: 'profile' | 'settings' | 'support' | 'terms'
@@ -30,10 +31,11 @@ function ProfileCard() {
         className="h-[84px] w-[84px] shrink-0 rounded object-cover"
       />
       <div className="min-w-0 flex-1 tracking-[-0.05em]">
-        <h2 className="text-[17px] leading-none font-normal">User name</h2>
-        <p className="mt-[7px] text-[13px] leading-none">Caption</p>
+        <h2 className="text-[17px] leading-none font-normal">{MOCK_MY_PAGE_DATA.name}</h2>
+        <p className="mt-[7px] text-[13px] leading-[1.2]">{MOCK_MY_PAGE_DATA.caption}</p>
         <p className="mt-[7px] line-clamp-2 text-[13px] leading-[1.2] text-white/50">
-          CaptionCaptionCaptionCaptionCaptionCaption, CaptionCaption
+          목표 수면 {MOCK_MY_PAGE_DATA.targetSleepMinutes / 60}시간 · 통근{' '}
+          {MOCK_MY_PAGE_DATA.commuteMinutes}분
         </p>
       </div>
     </section>
@@ -96,7 +98,7 @@ export default function MyPage() {
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-[340px] pt-5 pb-8">
-        <h1 className="text-center text-[17px] leading-none font-normal tracking-[-0.05em] underline underline-offset-2">
+        <h1 className="text-center text-[17px] leading-none font-normal tracking-[-0.05em] underline underline-offset-2 [text-decoration-skip-ink:none]">
           my page
         </h1>
 

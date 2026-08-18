@@ -106,7 +106,7 @@ export function CheckInCard({ variant, date }: { variant: Variant; date: string 
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#111111]/25 p-4 backdrop-blur-md">
+    <div className="rounded-2xl border border-white/20 bg-[#111111]/25 p-4 backdrop-blur-md">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-semibold text-white">{meta.title}</p>

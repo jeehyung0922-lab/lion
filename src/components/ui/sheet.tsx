@@ -28,7 +28,10 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        'fixed inset-0 z-50 bg-black/50 transition-opacity duration-300 data-[state=closed]:opacity-0 data-[state=open]:opacity-100',
+        // transition+조건부 opacity는 "닫힘→열림"만 보간되고 최초 마운트(열기)에는 안 먹는다
+        // (전환은 이미 있는 값 사이에서만 일어나서다) — animate-in/out(키프레임)으로 바꿔
+        // 마운트 시에도 페이드가 재생되게 한다.
+        'fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-300 data-[state=open]:duration-300',
         className,
       )}
       {...props}
@@ -52,14 +55,21 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          'fixed z-50 flex flex-col gap-4 bg-background shadow-lg transition-transform duration-300 ease-in-out',
+          // ⚠️ transition-transform + data-[state=closed]:translate-*는 열릴 때 애니메이션이 없다.
+          // Content는 open=true가 되는 순간 data-state="open"으로 곧장 마운트되므로(실측 확인),
+          // "닫힘" 트랜스폼을 거친 적이 없어 보간할 이전 값 자체가 없다 — 그래서 그냥 툭 나타난다.
+          // animate-in/out(키프레임, tw-animate-css)은 마운트 시점에도 처음부터 끝까지 재생되므로
+          // 열기·닫기 둘 다에서 슬라이드가 보인다. 이 컴포넌트를 쓰는 모든 시트(온보딩 날짜/유형
+          // 수정, 재설계)에 공통 적용된다.
+          'fixed z-50 flex flex-col gap-4 bg-background shadow-lg duration-300 ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out',
           side === 'right' &&
-            'inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:translate-x-full sm:max-w-sm',
+            'inset-y-0 right-0 h-full w-3/4 border-l data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right sm:max-w-sm',
           side === 'left' &&
-            'inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:-translate-x-full sm:max-w-sm',
-          side === 'top' && 'inset-x-0 top-0 h-auto border-b data-[state=closed]:-translate-y-full',
+            'inset-y-0 left-0 h-full w-3/4 border-r data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left sm:max-w-sm',
+          side === 'top' &&
+            'inset-x-0 top-0 h-auto border-b data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top',
           side === 'bottom' &&
-            'inset-x-0 bottom-0 h-auto border-t data-[state=closed]:translate-y-full',
+            'inset-x-0 bottom-0 h-auto border-t data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
           className,
         )}
         {...props}

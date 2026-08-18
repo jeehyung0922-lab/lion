@@ -116,6 +116,8 @@ export interface ParseScheduleApiRequest {
 export interface RowLabelRequiredError {
   error: 'ROW_LABEL_REQUIRED'
   rowLabels: string[]
+  /** rowLabels와 같은 순서·길이일 때만 온다(백엔드가 짝이 안 맞으면 아예 뺌) — 옵션 취급 필수 */
+  rowPreviews?: string[]
 }
 
 /** ApiError가 ROW_LABEL_REQUIRED 케이스인지 확인하고 본문을 파싱해 반환 (아니면 null) */

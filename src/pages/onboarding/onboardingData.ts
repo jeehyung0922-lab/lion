@@ -79,6 +79,9 @@ const SHIFT_TYPE_ALIASES: Record<string, ShiftType> = {
   주간: 'DAY',
   오전: 'DAY',
   데이: 'DAY',
+  // ⚠️ 'E'가 빠져 있어서 3교대 표의 이브닝이 전부 DAY로 떨어졌다(실측 확인, 2026-08-18).
+  //    D/N은 한 글자 별칭이 있는데 E만 없던 누락 — 3교대 표에서 가장 흔한 표기라 영향이 컸다.
+  E: 'EVENING',
   EVENING: 'EVENING',
   오후: 'EVENING',
   이브닝: 'EVENING',

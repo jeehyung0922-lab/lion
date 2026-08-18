@@ -18,10 +18,18 @@ interface PersonalizeStepProps {
   update: (patch: Partial<OnboardingForm>) => void
   onNext: () => void
   onBack?: () => void
+  /** 마지막 단계라 이 버튼이 실제 등록을 실행한다 — 요청 중엔 중복 제출을 막는다 */
+  submitting?: boolean
 }
 
-/** 1. 개인화 데이터 입력 */
-export function PersonalizeStep({ form, update, onNext, onBack }: PersonalizeStepProps) {
+/** 3. 개인화 데이터 입력 (마지막 단계 — 여기서 프로필·근무표를 한 번에 등록한다) */
+export function PersonalizeStep({
+  form,
+  update,
+  onNext,
+  onBack,
+  submitting = false,
+}: PersonalizeStepProps) {
   return (
     <StepShell
       gradient={STEP_GRADIENTS.personalize}
@@ -29,14 +37,18 @@ export function PersonalizeStep({ form, update, onNext, onBack }: PersonalizeSte
       footer={
         <Button
           onClick={onNext}
-          disabled={!form.name.trim()}
+          disabled={!form.name.trim() || submitting}
           className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15 disabled:opacity-40"
         >
-          이 근무표로 나만의 리듬 생성하기
+          {submitting ? '등록하는 중…' : '이 근무표로 나만의 리듬 생성하기'}
         </Button>
       }
     >
-      <p className="mb-6 text-center text-base font-medium text-white/90">정보를 입력해주세요.</p>
+      <p className="mb-6 text-center text-base leading-relaxed font-medium text-white/90">
+        근무표는 다 읽었어요.
+        <br />
+        마지막으로 몇 가지만 알려주세요.
+      </p>
 
       <div className="space-y-3">
         {/* 이름 — 프로필에 저장되는 이름(ProfileRequest.name). 근무표 본인 행 선택은 다음 단계에서 별도 처리 */}

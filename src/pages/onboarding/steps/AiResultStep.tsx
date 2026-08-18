@@ -22,6 +22,29 @@ const SHIFT_ICON: Record<ShiftType, typeof Sun> = {
   NIGHT: Moon,
   OFF: Coffee,
 }
+/**
+ * 표에 범례가 없어 시각을 못 읽었을 때 대신 채워 넣는 교대 프리셋.
+ * ⚠️ 값은 ai-server 의 SHIFT_TIME_PRESETS 와 같게 유지한다 — 서버가 채우든 여기서 채우든
+ *    사용자 눈에는 같은 시각이 보여야 한다(한쪽만 바꾸면 화면마다 표준값이 달라진다).
+ * 빈칸을 채우게 하는 것보다 채워진 값을 확인받는 쪽이 훨씬 빠르고, 제출 버튼이 막히지도 않는다.
+ */
+type ShiftTimePreset = Partial<Record<Exclude<ShiftType, 'OFF'>, { start: string; end: string }>>
+
+const TWO_SHIFT_PRESET: ShiftTimePreset = {
+  DAY: { start: '08:00', end: '20:00' },
+  NIGHT: { start: '20:00', end: '08:00' },
+}
+const THREE_SHIFT_PRESET: ShiftTimePreset = {
+  DAY: { start: '06:00', end: '14:00' },
+  EVENING: { start: '14:00', end: '22:00' },
+  NIGHT: { start: '22:00', end: '06:00' },
+}
+
+/** 표에 EVENING 이 있으면 3교대, 없으면 2교대로 본다(ai-server 와 동일한 판단) */
+function presetFor(types: ShiftTypeInfo[]): ShiftTimePreset {
+  return types.some((t) => t.shift === 'EVENING') ? THREE_SHIFT_PRESET : TWO_SHIFT_PRESET
+}
+
 // 불투명 배경 — 뒤 그라데이션 글로우의 영향을 받지 않도록
 const SHIFT_CARD_BG: Record<ShiftType, string> = {
   DAY: '#3a6018',
@@ -48,7 +71,25 @@ export function AiResultStep({
   onConfirm,
   onBack,
 }: AiResultStepProps) {
-  const [shiftTypes, setShiftTypes] = useState<ShiftTypeInfo[]>(initialShiftTypes)
+  const [shiftTypes, setShiftTypes] = useState<ShiftTypeInfo[]>(() => {
+    const preset = presetFor(initialShiftTypes)
+    return initialShiftTypes.map((t) => {
+      if (t.shift === 'OFF') return t
+      if (t.startTime && t.endTime) return t
+      const d = preset[t.shift]
+      if (!d) return t
+      return { ...t, startTime: t.startTime || d.start, endTime: t.endTime || d.end }
+    })
+  })
+  /** 위에서 시각을 대신 채워준 라벨 — 사용자가 카드를 열어 저장하면 빠진다 */
+  const [guessed, setGuessed] = useState<Set<string>>(
+    () =>
+      new Set(
+        initialShiftTypes
+          .filter((t) => t.shift !== 'OFF' && (!t.startTime || !t.endTime))
+          .map((t) => t.rawLabel),
+      ),
+  )
   const [schedule, setSchedule] = useState<ScheduleDay[]>(initialSchedule)
   const [editType, setEditType] = useState<ShiftTypeInfo | null>(null)
   const [editDay, setEditDay] = useState<ScheduleDay | null>(null)
@@ -76,8 +117,21 @@ export function AiResultStep({
   const [viewIdx, setViewIdx] = useState(0)
   const [viewYear, viewMonth] = months[Math.min(viewIdx, months.length - 1)].split('-').map(Number)
 
+  /**
+   * 사진에서 읽은 근무표의 기준 년·월.
+   * ⚠️ 지금은 요청에 year/month를 싣지 않아 서버가 "현재 달"로 가정한다 — 다음 달 표를 미리 올리면
+   *    전부 이번 달로 저장된다. 요청 필드가 생기기 전까지는 최소한 제출 전에 눈으로 잡을 수 있게
+   *    상단에 고정으로 노출해둔다.
+   */
+  const [baseYear, baseMonth] = (months[0] ?? fallbackMonth).split('-')
+
   /** 라벨 카드 하나를 보정하면, 그 원문 라벨을 공유하는 모든 날짜에 함께 반영한다 */
   function saveType(next: ShiftTypeInfo) {
+    setGuessed((prev) => {
+      const rest = new Set(prev)
+      rest.delete(next.rawLabel)
+      return rest
+    })
     setShiftTypes((prev) => prev.map((t) => (t.rawLabel === next.rawLabel ? next : t)))
     setSchedule((prev) =>
       prev.map((d) =>
@@ -116,7 +170,7 @@ export function AiResultStep({
             disabled={missingTime}
             className="h-12 w-full rounded-2xl border border-white/20 bg-white/10 text-base font-semibold text-white backdrop-blur-sm hover:bg-white/15 disabled:opacity-40"
           >
-            이 근무표로 나만의 리듬 생성하기
+            이 근무표가 맞아요
           </Button>
           {missingTime && (
             <p className="text-center text-xs text-[#ff8fb0]">
@@ -126,10 +180,25 @@ export function AiResultStep({
         </div>
       }
     >
+      {/* 기준 년·월 — 달이 어긋나면 이후 모든 날짜가 틀어지므로 제일 위에 고정으로 둔다 */}
+      <div className="mb-3 flex items-center justify-between rounded-lg border border-white/10 bg-[#111111]/30 px-4 py-2.5 backdrop-blur-md">
+        <span className="text-[13px] tracking-[-0.025em] text-white tabular-nums">
+          {baseYear}년 {Number(baseMonth)}월 근무표
+        </span>
+        <span className="text-[12px] tracking-[-0.025em] text-white/45">사진에서 읽은 값</span>
+      </div>
+
+      {guessed.size > 0 && (
+        <div className="mb-3 rounded-lg border border-[#FFE124]/40 bg-[#FFE124]/10 px-4 py-2.5 text-[12px] leading-relaxed tracking-[-0.025em] text-[#FFE124]">
+          확인 필요 {guessed.size}건 — 표에 범례가 없어 시각을 대신 채웠어요. 노란 카드를 눌러
+          확인해주세요.
+        </div>
+      )}
+
       <p className="mb-5 text-center text-sm leading-relaxed text-white/85">
-        AI가 근무표를 분석한 결과입니다.
+        인식된 근무 유형이 맞는지 확인하고,
         <br />
-        인식된 근무 유형이 맞는지 확인하고, 수정이 필요하면 눌러서 보정해주세요.
+        수정이 필요하면 눌러서 보정해주세요.
       </p>
 
       {/* 감지된 교대유형 카드 — AI가 사진에서 읽은 원문 라벨 수만큼 표시 */}
@@ -137,18 +206,27 @@ export function AiResultStep({
         {shiftTypes.map((t) => {
           const meta = SHIFT_META[t.shift]
           const Icon = SHIFT_ICON[t.shift]
+          const isGuess = guessed.has(t.rawLabel)
           return (
             <button
               key={t.rawLabel}
               type="button"
               onClick={() => setEditType(t)}
               className="flex flex-col gap-2 rounded-2xl border p-4 text-left transition-colors"
-              style={{ borderColor: `${meta.dotColor}66`, backgroundColor: SHIFT_CARD_BG[t.shift] }}
+              style={{
+                borderColor: isGuess ? 'rgba(255,225,36,0.55)' : `${meta.dotColor}66`,
+                backgroundColor: SHIFT_CARD_BG[t.shift],
+              }}
             >
               <span className="flex items-center gap-1.5 text-sm font-semibold">
                 <Icon className="size-4" style={{ color: meta.dotColor }} />
                 {meta.label}
               </span>
+              {isGuess && (
+                <span className="w-fit rounded-full border border-[#FFE124]/45 bg-[#FFE124]/10 px-2 py-0.5 text-[10px] text-[#FFE124]">
+                  추정값
+                </span>
+              )}
               <span className="text-[11px] text-white/50">원본 라벨: {t.rawLabel}</span>
               {t.shift !== 'OFF' && (
                 <span className="text-xs tabular-nums text-white/70">

@@ -17,13 +17,15 @@ interface PersonalizeStepProps {
   form: OnboardingForm
   update: (patch: Partial<OnboardingForm>) => void
   onNext: () => void
+  onBack?: () => void
 }
 
 /** 1. 개인화 데이터 입력 */
-export function PersonalizeStep({ form, update, onNext }: PersonalizeStepProps) {
+export function PersonalizeStep({ form, update, onNext, onBack }: PersonalizeStepProps) {
   return (
     <StepShell
       gradient={STEP_GRADIENTS.personalize}
+      onBack={onBack}
       footer={
         <Button
           onClick={onNext}

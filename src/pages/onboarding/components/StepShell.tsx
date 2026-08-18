@@ -1,17 +1,30 @@
 import type { ReactNode } from 'react'
+import { ChevronLeft } from 'lucide-react'
 
-/** 단계별 전면 그라데이션 배경 + 세로 레이아웃 셸 */
+/** 단계별 전면 그라데이션 배경 + 세로 레이아웃 셸. onBack을 주면 좌상단에 뒤로가기 버튼이 뜬다. */
 export function StepShell({
   gradient,
   children,
   footer,
+  onBack,
 }: {
   gradient: string
   children: ReactNode
   footer?: ReactNode
+  onBack?: () => void
 }) {
   return (
     <div className="flex h-full w-full flex-col px-6 pt-14 pb-8" style={{ background: gradient }}>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="이전 단계로"
+          className="-ml-2 -mt-2 mb-2 flex size-9 items-center justify-center self-start rounded-full text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <ChevronLeft className="size-5" strokeWidth={2} />
+        </button>
+      )}
       <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
       {footer ? <div className="pt-6">{footer}</div> : null}
     </div>

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { ScheduleDay } from '@/types'
+import type { ScheduleDay, ShiftType } from '@/types'
 import { api, toApiTime, type ParseScheduleResponse, type ShiftTypeDefaultDto } from '@/lib/api'
 import {
   DEFAULT_FORM,
@@ -31,17 +31,34 @@ function loadForm(): OnboardingForm {
   }
 }
 
+const VALID_SHIFT_TYPES: ShiftType[] = ['DAY', 'EVENING', 'NIGHT', 'OFF']
+function isShiftType(v: string | undefined): v is ShiftType {
+  return VALID_SHIFT_TYPES.includes(v as ShiftType)
+}
+
 /**
- * 파싱 응답(shiftTypes)의 shiftType은 백엔드가 정규화하지 않은 원문 라벨("주간","오후" 등) —
- * 카테고리(DAY/EVENING/NIGHT/OFF)는 추정값을 채워두고, AiResultStep에서 사용자가 확인·보정한다.
+ * 파싱 응답(shiftTypes)의 shiftType은 원문 라벨("주간","오후" 등)이고, 재배포 후 백엔드가
+ * 자체 정규화 카테고리(mapped: DAY/EVENING/NIGHT/OFF)도 같이 준다(실측 확인) — 이 값을 우선
+ * 신뢰하고, 없거나 알 수 없는 값이면 프론트의 별칭 추정(guessShiftType)으로 폴백한다.
+ * AiResultStep에서 사용자가 최종 확인·보정한다.
  */
 function toShiftTypeInfos(defs: ParseScheduleResponse['shiftTypes']): ShiftTypeInfo[] {
-  return defs.map((d) => ({
+  const infos = defs.map((d) => ({
     rawLabel: d.shiftType,
-    shift: guessShiftType(d.shiftType),
+    shift: isShiftType(d.mapped) ? d.mapped : guessShiftType(d.shiftType),
     startTime: d.startTime ?? '',
     endTime: d.endTime ?? '',
   }))
+  // 휴무는 원문 라벨이 달라도(예: "휴무" vs "-") 시작·종료 시각이 없어 구분할 의미가 없다 —
+  // 카드 하나로 합쳐서 "휴무가 2개 떠 있다"는 혼란을 없앤다. 날짜별 매핑(toScheduleDays)은
+  // 못 찾은 라벨이면 OFF로 폴백하므로 여기서 나머지를 제거해도 결과에 영향 없다.
+  let seenOff = false
+  return infos.filter((t) => {
+    if (t.shift !== 'OFF') return true
+    if (seenOff) return false
+    seenOff = true
+    return true
+  })
 }
 
 /** rawLabel로 shiftTypes와 매칭해 카테고리/시각을 채운다(라벨 자체는 shiftTypes 쪽에서만 보정) */
@@ -72,6 +89,19 @@ export default function OnboardingPage() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [errorFading, setErrorFading] = useState(false)
+
+  // 등록 실패 토스트 — 계속 떠 있으면 달력 조작을 가려버려서, 잠시 후 페이드아웃하며 사라지게 한다
+  useEffect(() => {
+    if (!submitError) return
+    setErrorFading(false)
+    const fadeTimer = setTimeout(() => setErrorFading(true), 2500)
+    const clearTimer = setTimeout(() => setSubmitError(null), 3000)
+    return () => {
+      clearTimeout(fadeTimer)
+      clearTimeout(clearTimer)
+    }
+  }, [submitError])
 
   function update(patch: Partial<OnboardingForm>) {
     setForm((prev) => ({ ...prev, ...patch }))
@@ -133,18 +163,28 @@ export default function OnboardingPage() {
 
   return (
     <div className="relative h-full">
-      {step === 0 && <PersonalizeStep form={form} update={update} onNext={() => setStep(1)} />}
-      {step === 1 && <ScheduleStep onParsed={handleParsed} />}
+      {step === 0 && (
+        <PersonalizeStep
+          form={form}
+          update={update}
+          onNext={() => setStep(1)}
+          onBack={() => navigate('/')}
+        />
+      )}
+      {step === 1 && <ScheduleStep onParsed={handleParsed} onBack={() => setStep(0)} />}
       {step === 2 && (
         <>
           <AiResultStep
             initialShiftTypes={parsed.shiftTypes}
             initialSchedule={parsed.schedule}
             onConfirm={handleConfirm}
+            onBack={() => setStep(1)}
           />
           {(submitting || submitError) && (
             <div className="pointer-events-none absolute inset-x-0 bottom-24 flex justify-center px-6">
-              <div className="pointer-events-auto rounded-xl border border-white/15 bg-black/70 px-4 py-2.5 text-xs text-white backdrop-blur-md">
+              <div
+                className={`rounded-xl border border-white/15 bg-black/70 px-4 py-2.5 text-xs text-white backdrop-blur-md transition-opacity duration-500 ${errorFading ? 'opacity-0' : 'opacity-100'}`}
+              >
                 {submitting ? '등록하는 중…' : submitError}
               </div>
             </div>

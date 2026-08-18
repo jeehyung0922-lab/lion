@@ -6,6 +6,7 @@ import { api, ApiError, asRowLabelError, fileToBase64, type ParseScheduleRespons
 interface ScheduleStepProps {
   /** 파싱 성공 시 결과와 함께 다음 단계로 */
   onParsed: (result: ParseScheduleResponse) => void
+  onBack?: () => void
 }
 
 /**
@@ -15,7 +16,7 @@ interface ScheduleStepProps {
  * 단체 근무표라 AI가 본인 행을 특정 못하면 422(ROW_LABEL_REQUIRED)+rowLabels가 오는데,
  * 그 목록에서 사용자가 고른 값으로 myRowLabel을 채워 재호출한다.
  */
-export function ScheduleStep({ onParsed }: ScheduleStepProps) {
+export function ScheduleStep({ onParsed, onBack }: ScheduleStepProps) {
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -66,6 +67,7 @@ export function ScheduleStep({ onParsed }: ScheduleStepProps) {
   return (
     <StepShell
       gradient={uploaded ? STEP_GRADIENTS.scheduleUploaded : STEP_GRADIENTS.scheduleIntro}
+      onBack={onBack}
       footer={
         uploaded ? (
           <div className="space-y-2">

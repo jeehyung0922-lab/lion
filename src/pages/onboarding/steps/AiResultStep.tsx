@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Sun, Sunset, Moon, Coffee } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import type { ScheduleDay, ShiftType } from '@/types'
 import { StepShell, STEP_GRADIENTS } from '../components/StepShell'
 import { MonthCalendar } from '../components/MonthCalendar'
+import { TimeWheel } from '../components/WheelPicker'
 import { SHIFT_META, type ShiftTypeInfo } from '../onboardingData'
 
 const SHIFT_ORDER: ShiftType[] = ['DAY', 'EVENING', 'NIGHT', 'OFF']
@@ -34,6 +34,7 @@ interface AiResultStepProps {
   initialShiftTypes: ShiftTypeInfo[]
   initialSchedule: ScheduleDay[]
   onConfirm: (shiftTypes: ShiftTypeInfo[], schedule: ScheduleDay[]) => void
+  onBack?: () => void
 }
 
 /**
@@ -41,7 +42,12 @@ interface AiResultStepProps {
  * ⚠️ 백엔드가 shiftType을 정규화해주지 않아(사진 원문 라벨 그대로 반환) 감지된 라벨 수만큼
  * 카드가 뜬다. 사용자가 각 라벨을 DAY/EVENING/NIGHT/OFF 중 하나로 매핑해야 제출이 가능하다.
  */
-export function AiResultStep({ initialShiftTypes, initialSchedule, onConfirm }: AiResultStepProps) {
+export function AiResultStep({
+  initialShiftTypes,
+  initialSchedule,
+  onConfirm,
+  onBack,
+}: AiResultStepProps) {
   const [shiftTypes, setShiftTypes] = useState<ShiftTypeInfo[]>(initialShiftTypes)
   const [schedule, setSchedule] = useState<ScheduleDay[]>(initialSchedule)
   const [editType, setEditType] = useState<ShiftTypeInfo | null>(null)
@@ -102,6 +108,7 @@ export function AiResultStep({ initialShiftTypes, initialSchedule, onConfirm }: 
   return (
     <StepShell
       gradient={STEP_GRADIENTS.aiResult}
+      onBack={onBack}
       footer={
         <div className="space-y-2">
           <Button
@@ -258,11 +265,11 @@ function ShiftTypeEditor({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>시작</Label>
-                <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+                <TimeWheel value={start || '00:00'} onChange={setStart} />
               </div>
               <div className="space-y-1.5">
                 <Label>종료</Label>
-                <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+                <TimeWheel value={end || '00:00'} onChange={setEnd} />
               </div>
             </div>
           )}

@@ -88,7 +88,7 @@ export default function CollectbookPage() {
       style={{ backgroundImage: "url('/collectbook/background.svg')" }}
     >
       <header className="text-center">
-        <h1 className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2">
+        <h1 className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2 [text-decoration-skip-ink:none]">
           collect book
         </h1>
       </header>

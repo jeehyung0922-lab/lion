@@ -10,7 +10,7 @@ import {
 } from '@/lib/api'
 
 /**
- * 기록 분석 리포트("log book") — 콜렉트북과 타이포·테두리·카드 언어는 동일하되, 배경 색은 다르게(블루+옐로).
+ * 기록 분석 리포트("reports") — 콜렉트북과 타이포·테두리·카드 언어는 동일하되, 배경 색은 다르게(블루+옐로).
  * 실제 API(GET /api/reports/weekly,monthly,daily) 연동.
  * 주간/월간 탭 · 기간 스테퍼(오늘로) · 재계획 요약 · 날짜 리스트 → 일별 상세.
  */
@@ -141,8 +141,8 @@ export default function ReportPage() {
   return (
     <div className="min-h-full px-6 pt-5 pb-8" style={{ background: REPORT_BG }}>
       <header className="text-center">
-        <h1 className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2">
-          log book
+        <h1 className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2 [text-decoration-skip-ink:none]">
+          reports
         </h1>
       </header>
 
@@ -225,6 +225,30 @@ function WeeklyView({
   data: WeeklyReportView | null
   onSelect: (date: string) => void
 }) {
+  // 날짜별 기록엔 재계획 여부가 없어(DayEntry에 필드 없음) — 일별 상세를 개별 조회해서 뱃지로 보여준다.
+  const [replanCounts, setReplanCounts] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    if (!data || data.days.length === 0) {
+      setReplanCounts({})
+      return
+    }
+    let cancelled = false
+    Promise.all(
+      data.days.map((d) =>
+        api
+          .getDailyReport(d.date)
+          .then((r): [string, number] => [d.date, r.replanLog.length])
+          .catch((): [string, number] => [d.date, 0]),
+      ),
+    ).then((entries) => {
+      if (!cancelled) setReplanCounts(Object.fromEntries(entries))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [data])
+
   if (!data) return <EmptyState />
   const hasDays = data.days.length > 0
 
@@ -280,9 +304,15 @@ function WeeklyView({
                   <span className="w-16 text-[13px] tracking-[-0.025em] text-white/90">
                     {weekdayKo(d.date)} {d.date.slice(5).replace('-', '/')}
                   </span>
-                  <span className="flex-1 text-[13px] font-medium text-white tabular-nums">
-                    {fmtMinutes(d.sleepMinutes)}
+                  <span className="flex-1 text-[13px] text-white">
+                    <span className="mr-1.5 text-white/45">수면시간</span>
+                    <span className="font-medium tabular-nums">{fmtMinutes(d.sleepMinutes)}</span>
                   </span>
+                  {replanCounts[d.date] > 0 && (
+                    <span className="rounded-full border border-white/20 bg-white/[0.06] px-2 py-0.5 text-[10px] tracking-[-0.025em] text-white/70">
+                      재계획 {replanCounts[d.date]}
+                    </span>
+                  )}
                   <ChevronRight className="size-4 text-white/40" />
                 </button>
               </li>
@@ -403,7 +433,7 @@ function DayDetail({
               <p className="mb-2 text-[12px] tracking-[-0.025em] text-white/55">재계획 로그</p>
               <ul className="space-y-3">
                 {data.replanLog.map((r) => (
-                  <li key={r.version} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <li key={r.version} className="rounded-xl border border-white/20 bg-black/20 p-3">
                     <div className="flex items-center justify-between">
                       <span className="text-[13px] font-medium tracking-[-0.025em] text-white">
                         v{r.version} · {REPLAN_REASON_LABEL[r.reason]}

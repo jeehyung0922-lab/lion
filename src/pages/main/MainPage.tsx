@@ -6,6 +6,7 @@ import { MoonGauge } from './MoonGauge'
 import { RoutineTable, type RoutineRowVM } from './RoutineTable'
 import { CheckInBadge, CheckInCard, useCheckinState } from './CheckInCard'
 import { MAIN_THEMES, MODE_TO_THEME } from './mainTheme'
+import { ReplanSheet } from './ReplanSheet'
 
 /**
  * 메인페이지 (홈, 내 담당) — 근무 유형에 따라 배경색이 바뀜(4종).
@@ -227,27 +228,29 @@ export default function MainPage() {
   const [error, setError] = useState<string | null>(null)
   /** 등록된 근무표에 오늘 날짜가 없는 상태(지난 달 표만 올린 경우) — 서버 장애와는 다르게 안내한다 */
   const [outOfRange, setOutOfRange] = useState(false)
+  // 재설계 바텀시트 — 열림 여부와, 칩으로 열었을 때 채워 넣을 문구
+  const [replanOpen, setReplanOpen] = useState(false)
+  const [replanPrefill, setReplanPrefill] = useState('')
+
+  /** 마운트 시 + 재설계 확정 후 다시 부른다(둘 다 같은 "오늘 다시 불러오기") */
+  async function refreshToday() {
+    setLoading(true)
+    try {
+      const res = await api.getTodayRoutine()
+      setData(res)
+      setOutOfRange(false)
+      setError(null)
+    } catch (e) {
+      // 404 = 근무표에 오늘 날짜가 없다는 뜻. "불러오지 못했어요"로 뭉뚱그리면 사용자가 할 일을 모른다.
+      if (e instanceof ApiError && e.status === 404) setOutOfRange(true)
+      else setError('오늘의 루틴을 불러오지 못했어요.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    api
-      .getTodayRoutine()
-      .then((res) => {
-        if (!cancelled) setData(res)
-      })
-      .catch((e) => {
-        if (cancelled) return
-        // 404 = 근무표에 오늘 날짜가 없다는 뜻. "불러오지 못했어요"로 뭉뚱그리면 사용자가 할 일을 모른다.
-        if (e instanceof ApiError && e.status === 404) setOutOfRange(true)
-        else setError('오늘의 루틴을 불러오지 못했어요.')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
+    refreshToday()
   }, [])
 
   const theme = MAIN_THEMES[MODE_TO_THEME[data?.mode ?? 'OFF_RHYTHM_MAINTAIN']]
@@ -273,146 +276,165 @@ export default function MainPage() {
   }, [])
   const nowAbs = foldToOrigin(origin, now.getHours() * 60 + now.getMinutes())
   const heroTarget = findHeroTarget(absSegments, nowAbs)
-  const remainingSeconds = heroTarget ? heroTarget.targetAbs * 60 - (nowAbs * 60 + now.getSeconds()) : 0
+  const remainingSeconds = heroTarget
+    ? heroTarget.targetAbs * 60 - (nowAbs * 60 + now.getSeconds())
+    : 0
 
   return (
-    <div className="min-h-full w-full px-5 pt-14 pb-28" style={{ background: theme.gradient }}>
-      {/* 헤더: 시차 + 오늘의 모드(탭 → 사유) */}
-      <div className="flex items-start justify-between">
-        <span className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2 [text-decoration-skip-ink:none]">
-          시차
-        </span>
-        <button
-          onClick={() => setShowReason((v) => !v)}
-          className="text-[13px] tracking-[-0.025em] text-white/90"
-        >
-          {theme.label}
-        </button>
-      </div>
-
-      {showReason && data && (
-        <div className="mt-2 ml-auto max-w-[85%] rounded-xl border border-white/20 bg-[#111111]/40 px-3 py-2.5 text-[12px] leading-relaxed tracking-[-0.025em] whitespace-pre-line text-white/85 backdrop-blur-md">
-          {data.modeReason}
-        </div>
-      )}
-
-      {error && <p className="mt-4 text-xs text-[#ff8fb0]">{error}</p>}
-
-      {outOfRange && (
-        <div className="mt-4 rounded-xl border border-white/20 bg-[#111111]/25 p-4 backdrop-blur-md">
-          <p className="text-[13px] leading-relaxed tracking-[-0.025em] text-white/85">
-            등록된 근무표에 오늘 날짜가 없어요.
-            <br />
-            이번 달 근무표를 올리면 오늘의 리듬을 만들어드릴게요.
-          </p>
+    <>
+      <div className="min-h-full w-full px-5 pt-14 pb-28" style={{ background: theme.gradient }}>
+        {/* 헤더: 시차 + 오늘의 모드(탭 → 사유) */}
+        <div className="flex items-start justify-between">
+          <span className="text-[17px] font-normal tracking-[-0.05em] text-white underline underline-offset-2 [text-decoration-skip-ink:none]">
+            시차
+          </span>
           <button
-            onClick={() => navigate('/onboarding', { viewTransition: true })}
-            className="mt-3 w-full rounded-lg border border-white/20 bg-white/10 py-2.5 text-[13px] font-medium tracking-[-0.025em] text-white transition-colors hover:bg-white/15"
+            onClick={() => setShowReason((v) => !v)}
+            className="text-[13px] tracking-[-0.025em] text-white/90"
           >
-            근무표 등록하기
+            {theme.label}
           </button>
         </div>
-      )}
 
-      {/* 히어로: 지금 뭘 향해 가는지(카운트다운) 먼저, 시차 문구는 그 아래로 + 무월 게이지 */}
-      <div className="mt-7 flex items-start justify-between gap-4">
-        <div className="flex-1">
-          {heroTarget ? (
-            <>
-              <p className="text-[13px] tracking-[-0.025em] text-white/70">{heroTarget.label}</p>
-              <p className="mt-0.5 text-[28px] font-semibold tracking-[-0.03em] text-white tabular-nums">
-                {fmtCountdown(remainingSeconds)}
-              </p>
-              {data && (
-                <p className="mt-1.5 text-[12px] tracking-[-0.025em] text-white/60">
-                  {data.jetlag.message}
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="text-[20px] leading-snug font-semibold tracking-[-0.03em] text-white">
-              {loading ? '불러오는 중…' : (data?.jetlag.message ?? '')}
+        {showReason && data && (
+          <div className="mt-2 ml-auto max-w-[85%] rounded-xl border border-white/20 bg-[#111111]/40 px-3 py-2.5 text-[12px] leading-relaxed tracking-[-0.025em] whitespace-pre-line text-white/85 backdrop-blur-md">
+            {data.modeReason}
+          </div>
+        )}
+
+        {error && <p className="mt-4 text-xs text-[#ff8fb0]">{error}</p>}
+
+        {outOfRange && (
+          <div className="mt-4 rounded-xl border border-white/20 bg-[#111111]/25 p-4 backdrop-blur-md">
+            <p className="text-[13px] leading-relaxed tracking-[-0.025em] text-white/85">
+              등록된 근무표에 오늘 날짜가 없어요.
+              <br />
+              이번 달 근무표를 올리면 오늘의 리듬을 만들어드릴게요.
             </p>
-          )}
-          {data && (
             <button
-              onClick={() => navigate('/collectbook', { viewTransition: true })}
-              className="mt-2 rounded-md px-2.5 py-1 text-[12px] font-medium tracking-[-0.025em]"
-              style={{
-                background: '#FFFFFF',
-                color: '#1a1a1a',
-                boxShadow: '0 0 14px 2px rgba(255,255,255,0.55)',
-              }}
+              onClick={() => navigate('/onboarding', { viewTransition: true })}
+              className="mt-3 w-full rounded-lg border border-white/20 bg-white/10 py-2.5 text-[13px] font-medium tracking-[-0.025em] text-white transition-colors hover:bg-white/15"
             >
-              {data.jetlag.dailyMessage}
+              근무표 등록하기
             </button>
-          )}
+          </div>
+        )}
+
+        {/* 히어로: 지금 뭘 향해 가는지(카운트다운) 먼저, 시차 문구는 그 아래로 + 무월 게이지 */}
+        <div className="mt-7 flex items-start justify-between gap-4">
+          <div className="flex-1">
+            {heroTarget ? (
+              <>
+                <p className="text-[13px] tracking-[-0.025em] text-white/70">{heroTarget.label}</p>
+                <p className="mt-0.5 text-[28px] font-semibold tracking-[-0.03em] text-white tabular-nums">
+                  {fmtCountdown(remainingSeconds)}
+                </p>
+                {data && (
+                  <p className="mt-1.5 text-[12px] tracking-[-0.025em] text-white/60">
+                    {data.jetlag.message}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-[20px] leading-snug font-semibold tracking-[-0.03em] text-white">
+                {loading ? '불러오는 중…' : (data?.jetlag.message ?? '')}
+              </p>
+            )}
+            {data && (
+              <button
+                onClick={() => navigate('/collectbook', { viewTransition: true })}
+                className="mt-2 rounded-md px-2.5 py-1 text-[12px] font-medium tracking-[-0.025em]"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#1a1a1a',
+                  boxShadow: '0 0 14px 2px rgba(255,255,255,0.55)',
+                }}
+              >
+                {data.jetlag.dailyMessage}
+              </button>
+            )}
+          </div>
+          <MoonGauge hours={data?.jetlag.dailyTravelHours ?? 0} max={24} />
         </div>
-        <MoonGauge hours={data?.jetlag.dailyTravelHours ?? 0} max={24} />
-      </div>
 
-      {/* 체크인을 닫으면 생기는 뱃지 — 표 위, 원래 자리 그대로 */}
-      {data && anyCheckinBadge && (
-        <div className="mt-6 space-y-2">
-          <CheckInBadge variant="wake" state={wakeCheckin} onChange={setWakeCheckin} />
-          {showClockoutCheckin && (
-            <CheckInBadge variant="clockout" state={clockoutCheckin} onChange={setClockoutCheckin} />
-          )}
-        </div>
-      )}
+        {/* 체크인을 닫으면 생기는 뱃지 — 표 위, 원래 자리 그대로 */}
+        {data && anyCheckinBadge && (
+          <div className="mt-6 space-y-2">
+            <CheckInBadge variant="wake" state={wakeCheckin} onChange={setWakeCheckin} />
+            {showClockoutCheckin && (
+              <CheckInBadge
+                variant="clockout"
+                state={clockoutCheckin}
+                onChange={setClockoutCheckin}
+              />
+            )}
+          </div>
+        )}
 
-      {/* 오늘의 루틴 표 — timeline이 실제론 더 길지만(이슈 5) 오늘(00:00~24:00) 몫만 보여줌 */}
-      <div className="mt-7">
-        <RoutineTable
-          accent={theme.accent}
-          dateLabel={data?.date ?? ''}
-          rows={data ? buildRows(daySegs, data, nowAbs, origin) : []}
-        />
-      </div>
-
-      {/* 기상/퇴근 체크인 입력 폼 (무시 가능) — 표 아래로 이동 */}
-      {data && anyCheckinCard && (
-        <div className="mt-6 space-y-2">
-          <CheckInCard
-            variant="wake"
-            date={data.date}
-            state={wakeCheckin}
-            onChange={setWakeCheckin}
+        {/* 오늘의 루틴 표 — timeline이 실제론 더 길지만(이슈 5) 오늘(00:00~24:00) 몫만 보여줌 */}
+        <div className="mt-7">
+          <RoutineTable
+            accent={theme.accent}
+            dateLabel={data?.date ?? ''}
+            rows={data ? buildRows(daySegs, data, nowAbs, origin) : []}
           />
-          {showClockoutCheckin && (
-            <CheckInCard
-              variant="clockout"
-              date={data.date}
-              state={clockoutCheckin}
-              onChange={setClockoutCheckin}
-            />
-          )}
         </div>
-      )}
 
-      {/* 재설계 진입 — 예시 칩 + 입력줄. 칩은 그 문구를 채운 채로 대화를 연다. */}
-      <div className="mt-4 space-y-2">
-        <div className="flex gap-2">
-          {REPLAN_CHIPS.map((chip) => (
-            <button
-              key={chip.label}
-              onClick={() =>
-                navigate('/coordinate', { viewTransition: true, state: { prefill: chip.text } })
-              }
-              className="flex-1 rounded-full border border-white/20 bg-[#111111]/25 py-2 text-[12px] tracking-[-0.03em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
-            >
-              {chip.label}
-            </button>
-          ))}
+        {/* 기상/퇴근 체크인 입력 폼 (무시 가능) — 표 아래로 이동 */}
+        {data && anyCheckinCard && (
+          <div className="mt-6 space-y-2">
+            <CheckInCard
+              variant="wake"
+              date={data.date}
+              state={wakeCheckin}
+              onChange={setWakeCheckin}
+            />
+            {showClockoutCheckin && (
+              <CheckInCard
+                variant="clockout"
+                date={data.date}
+                state={clockoutCheckin}
+                onChange={setClockoutCheckin}
+              />
+            )}
+          </div>
+        )}
+
+        {/* 재설계 진입 — 예시 칩 + 입력줄. 칩은 그 문구를 채운 채로 시트를 연다. */}
+        <div className="mt-4 space-y-2">
+          <div className="flex gap-2">
+            {REPLAN_CHIPS.map((chip) => (
+              <button
+                key={chip.label}
+                onClick={() => {
+                  setReplanPrefill(chip.text)
+                  setReplanOpen(true)
+                }}
+                className="flex-1 rounded-full border border-white/20 bg-[#111111]/25 py-2 text-[12px] tracking-[-0.03em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              setReplanPrefill('')
+              setReplanOpen(true)
+            }}
+            className="flex w-full items-center justify-between rounded-xl border border-white/20 bg-[#111111]/25 px-4 py-3.5 text-[13px] tracking-[-0.025em] backdrop-blur-md transition-colors hover:bg-[#111111]/40"
+          >
+            <span className="text-white/55">바뀐 일이 있으면 적어주세요</span>
+            <Send className="size-4 text-white/55" strokeWidth={2} />
+          </button>
         </div>
-        <button
-          onClick={() => navigate('/coordinate', { viewTransition: true })}
-          className="flex w-full items-center justify-between rounded-xl border border-white/20 bg-[#111111]/25 px-4 py-3.5 text-[13px] tracking-[-0.025em] backdrop-blur-md transition-colors hover:bg-[#111111]/40"
-        >
-          <span className="text-white/55">바뀐 일이 있으면 적어주세요</span>
-          <Send className="size-4 text-white/55" strokeWidth={2} />
-        </button>
       </div>
-    </div>
+
+      <ReplanSheet
+        open={replanOpen}
+        onOpenChange={setReplanOpen}
+        prefill={replanPrefill}
+        onConfirmed={refreshToday}
+      />
+    </>
   )
 }

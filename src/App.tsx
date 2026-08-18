@@ -3,7 +3,6 @@ import AppLayout from './components/layout/AppLayout'
 import SplashPage from './pages/splash/SplashPage'
 import OnboardingPage from './pages/onboarding/OnboardingPage'
 import MainPage from './pages/main/MainPage'
-import CoordinatePage from './pages/coordinate/CoordinatePage'
 import ReportPage from './pages/report/ReportPage'
 import CollectbookPage from './pages/collectbook/CollectbookPage'
 import MyPage from './pages/mypage/MyPage'
@@ -28,16 +27,7 @@ export const routes = (
     {/* 진입: 스플래시가 가장 먼저 */}
     <Route path="/" element={<SplashPage />} />
     <Route path="/onboarding" element={<OnboardingPage />} />
-    {/* 일정 조율 AI 대화 (GNB 없는 전체화면) */}
-    <Route
-      path="/coordinate"
-      element={
-        <RequireOnboarding>
-          <CoordinatePage />
-        </RequireOnboarding>
-      }
-    />
-    {/* 앱 화면 (GNB) */}
+    {/* 앱 화면 (GNB) — 재설계는 더 이상 별도 라우트가 아니라 홈의 바텀시트(ReplanSheet)다 */}
     <Route
       element={
         <RequireOnboarding>

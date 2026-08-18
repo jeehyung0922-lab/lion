@@ -74,6 +74,7 @@ export interface ShiftTypeInfo {
 
 /** 흔한 표기 → 카테고리 추정(편의용 기본값일 뿐, 최종 확인은 사용자가 함) */
 const SHIFT_TYPE_ALIASES: Record<string, ShiftType> = {
+  D: 'DAY',
   DAY: 'DAY',
   주간: 'DAY',
   오전: 'DAY',
@@ -81,9 +82,11 @@ const SHIFT_TYPE_ALIASES: Record<string, ShiftType> = {
   EVENING: 'EVENING',
   오후: 'EVENING',
   이브닝: 'EVENING',
+  N: 'NIGHT',
   NIGHT: 'NIGHT',
   야간: 'NIGHT',
   나이트: 'NIGHT',
+  O: 'OFF',
   OFF: 'OFF',
   휴무: 'OFF',
   휴일: 'OFF',

@@ -18,10 +18,10 @@ const TABS: Tab[] = [
 /** 하단 플로팅 알약형 GNB (아이콘). 콘텐츠 위에 떠 있음. */
 export default function GNB() {
   return (
-    <nav className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center pb-6">
+    <nav className="gnb-persist pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center pb-6">
       <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/20 bg-[#111111]/40 px-2 py-1.5 shadow-lg backdrop-blur-md">
         {TABS.map(({ to, label, Icon }) => (
-          <NavLink key={to} to={to} aria-label={label}>
+          <NavLink key={to} to={to} aria-label={label} viewTransition>
             {({ isActive }) => (
               <span
                 className="flex size-11 items-center justify-center rounded-full transition-colors"

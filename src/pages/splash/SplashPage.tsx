@@ -13,7 +13,7 @@ export default function SplashPage() {
   const navigate = useNavigate()
 
   function start() {
-    navigate('/onboarding')
+    navigate('/onboarding', { viewTransition: true })
   }
 
   return (

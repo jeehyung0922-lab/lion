@@ -1,5 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
-import { MobileFrame } from './components/layout/MobileFrame'
+import { Navigate, Route } from 'react-router-dom'
 import AppLayout from './components/layout/AppLayout'
 import SplashPage from './pages/splash/SplashPage'
 import OnboardingPage from './pages/onboarding/OnboardingPage'
@@ -20,41 +19,41 @@ function RequireOnboarding({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-export default function App() {
-  return (
-    <MobileFrame>
-      <Routes>
-        {/* 진입: 스플래시가 가장 먼저 */}
-        <Route path="/" element={<SplashPage />} />
-        <Route path="/onboarding" element={<OnboardingPage />} />
-        {/* 일정 조율 AI 대화 (GNB 없는 전체화면) */}
-        <Route
-          path="/coordinate"
-          element={
-            <RequireOnboarding>
-              <CoordinatePage />
-            </RequireOnboarding>
-          }
-        />
-        {/* 앱 화면 (GNB) */}
-        <Route
-          element={
-            <RequireOnboarding>
-              <AppLayout />
-            </RequireOnboarding>
-          }
-        >
-          <Route path="/home" element={<MainPage />} />
-          <Route path="/report" element={<ReportPage />} />
-          <Route path="/collectbook" element={<CollectbookPage />} />
-          <Route path="/mypage" element={<MyPage />} />
-          <Route path="/mypage/profile" element={<ProfileEditPage />} />
-          <Route path="/mypage/settings" element={<SettingsPage />} />
-          <Route path="/mypage/support" element={<SupportPage />} />
-          <Route path="/mypage/terms" element={<TermsPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </MobileFrame>
-  )
-}
+/**
+ * 라우트 정의. main.tsx 에서 데이터 라우터(createBrowserRouter)로 만든다 —
+ * 화면 전환(viewTransition)이 데이터 라우터에서만 동작하기 때문.
+ */
+export const routes = (
+  <>
+    {/* 진입: 스플래시가 가장 먼저 */}
+    <Route path="/" element={<SplashPage />} />
+    <Route path="/onboarding" element={<OnboardingPage />} />
+    {/* 일정 조율 AI 대화 (GNB 없는 전체화면) */}
+    <Route
+      path="/coordinate"
+      element={
+        <RequireOnboarding>
+          <CoordinatePage />
+        </RequireOnboarding>
+      }
+    />
+    {/* 앱 화면 (GNB) */}
+    <Route
+      element={
+        <RequireOnboarding>
+          <AppLayout />
+        </RequireOnboarding>
+      }
+    >
+      <Route path="/home" element={<MainPage />} />
+      <Route path="/report" element={<ReportPage />} />
+      <Route path="/collectbook" element={<CollectbookPage />} />
+      <Route path="/mypage" element={<MyPage />} />
+      <Route path="/mypage/profile" element={<ProfileEditPage />} />
+      <Route path="/mypage/settings" element={<SettingsPage />} />
+      <Route path="/mypage/support" element={<SupportPage />} />
+      <Route path="/mypage/terms" element={<TermsPage />} />
+    </Route>
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </>
+)

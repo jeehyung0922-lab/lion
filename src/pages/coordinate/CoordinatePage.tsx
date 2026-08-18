@@ -88,7 +88,7 @@ export default function CoordinatePage() {
       setMessages((m) =>
         m.map((it, i) => (i === index ? { ...it, confirmState: 'confirmed' } : it)),
       )
-      navigate('/home')
+      navigate('/home', { viewTransition: true })
     } catch (e) {
       const expired = e instanceof ApiError && e.status === 410
       setMessages((m) =>
@@ -112,7 +112,7 @@ export default function CoordinatePage() {
       {/* 헤더 */}
       <header className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-3">
         <button
-          onClick={() => navigate('/home')}
+          onClick={() => navigate('/home', { viewTransition: true })}
           aria-label="뒤로"
           className="rounded-md p-1 text-white/80 hover:bg-white/10"
         >

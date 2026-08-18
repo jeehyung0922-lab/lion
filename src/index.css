@@ -115,3 +115,45 @@ body {
   /* 모바일 안전영역 대응 */
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
 }
+
+/* ── 전환 ─────────────────────────────────────────────────────────
+   레이어 밖에 둔다 — Tailwind 유틸리티(@layer utilities)보다 나중에 적용돼서
+   개별 컴포넌트의 transition-colors 를 덮어쓴다. 앱 전체가 한 가지 움직임을 쓰게 하려는 것. */
+
+/* 누르는 느낌. 색만 바뀌던 걸 눌림까지 — 실제 측정한 토스 값(0.15s)에 맞춤 */
+button,
+[role='button'] {
+  transition-property: color, background-color, border-color, opacity, transform;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
+}
+
+button:active:not(:disabled),
+[role='button']:active {
+  transform: scale(0.97);
+}
+
+/* 화면 전환은 브라우저 기본 View Transition 을 쓰고 시간만 줄인다(기본 0.25s는 굼뜸).
+   미지원 브라우저는 그냥 전환 없이 넘어간다 — 폴리필 안 넣음. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.22s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 하단 GNB 는 탭을 바꿔도 제자리에 있어야 하므로 화면 전환에서 분리한다.
+   이게 없으면 페이지 전체 스냅샷과 같이 페이드돼서 깜빡인다. */
+.gnb-persist {
+  view-transition-name: gnb;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled),
+  [role='button']:active {
+    transform: none;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}

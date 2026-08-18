@@ -153,7 +153,7 @@ export default function OnboardingPage() {
       })
       localStorage.setItem('kinglion.profile', JSON.stringify(form))
       localStorage.setItem('kinglion.onboarded', '1')
-      navigate('/home', { replace: true })
+      navigate('/home', { replace: true, viewTransition: true })
     } catch {
       setSubmitError('등록에 실패했어요. 잠시 후 다시 시도해주세요.')
     } finally {

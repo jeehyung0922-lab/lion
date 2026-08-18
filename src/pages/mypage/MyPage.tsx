@@ -75,11 +75,11 @@ export default function MyPage() {
     localStorage.removeItem('kinglion.onboarded')
     localStorage.removeItem('kinglion.profile')
     clearUserId()
-    navigate('/onboarding', { replace: true })
+    navigate('/onboarding', { replace: true, viewTransition: true })
   }
 
   function selectMenu(item: MenuItem) {
-    navigate(item.to)
+    navigate(item.to, { viewTransition: true })
   }
 
   return (

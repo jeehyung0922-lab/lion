@@ -205,7 +205,7 @@ export default function MainPage() {
           </p>
           {data && (
             <button
-              onClick={() => navigate('/collectbook')}
+              onClick={() => navigate('/collectbook', { viewTransition: true })}
               className="mt-2 rounded-md px-2.5 py-1 text-[12px] font-medium tracking-[-0.025em]"
               style={{
                 background: '#FFFFFF',
@@ -239,7 +239,7 @@ export default function MainPage() {
 
       {/* 일정 조율 (AI 대화) */}
       <button
-        onClick={() => navigate('/coordinate')}
+        onClick={() => navigate('/coordinate', { viewTransition: true })}
         className="mt-4 w-full rounded-xl border border-white/20 bg-[#111111]/25 py-3.5 text-[13px] font-medium tracking-[-0.025em] text-white backdrop-blur-md transition-colors hover:bg-[#111111]/40"
       >
         일정 조율하기 +

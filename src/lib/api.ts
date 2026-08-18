@@ -174,7 +174,7 @@ export interface MealConstraintsView {
 }
 export interface JetlagView {
   utcOffset: number
-  city: string
+  country: string
   message: string
   dailyTravelHours: number
   dailyMessage: string

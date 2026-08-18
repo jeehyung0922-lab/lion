@@ -10,7 +10,7 @@ export type ApiLocalTime =
 export interface CollectbookZoneResponse {
   rank: number
   utcOffset: number
-  city: string
+  country: string
   livedDays: number
   representativeSleepStart: ApiLocalTime
   representativeSleepEnd: ApiLocalTime

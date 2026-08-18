@@ -144,7 +144,7 @@ function CollectbookContent({
         {zones.length > 0 ? (
           <ol className="space-y-2">
             {zones.map((zone) => (
-              <li key={`${zone.rank}-${zone.city}`}>
+              <li key={`${zone.rank}-${zone.country}`}>
                 <ZoneCard zone={zone} />
               </li>
             ))}
@@ -188,7 +188,7 @@ function ZoneCard({ zone }: { zone: CollectbookZoneResponse }) {
         <span className="text-[10px] font-medium tracking-wide text-white/45">
           #{zone.rank}
         </span>
-        <h3 className="text-[15px] font-medium tracking-[-0.035em] text-white">{zone.city}</h3>
+        <h3 className="text-[15px] font-medium tracking-[-0.035em] text-white">{zone.country}</h3>
         <div className="flex items-center gap-1.5">
           {zone.isNew ? (
             <span className="rounded-full border border-white/20 bg-white/[0.06] px-1.5 py-0.5 text-[8px] font-medium tracking-[0.08em] text-white/70">

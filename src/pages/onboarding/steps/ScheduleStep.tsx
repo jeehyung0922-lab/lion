@@ -43,7 +43,7 @@ export function ScheduleStep({ onParsed, onBack }: ScheduleStepProps) {
   const [preview, setPreview] = useState<string | null>(null)
   const [analyzing, setAnalyzing] = useState<AnalyzePhase | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [rowLabels, setRowLabels] = useState<string[] | null>(null)
+  const [rowPick, setRowPick] = useState<{ labels: string[]; previews?: string[] } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function pickFile() {
@@ -54,7 +54,7 @@ export function ScheduleStep({ onParsed, onBack }: ScheduleStepProps) {
     const f = e.target.files?.[0]
     if (!f) return
     setError(null)
-    setRowLabels(null)
+    setRowPick(null)
     setFile(f)
     setPreview(URL.createObjectURL(f))
   }
@@ -63,7 +63,7 @@ export function ScheduleStep({ onParsed, onBack }: ScheduleStepProps) {
     if (!file) return
     setAnalyzing(myRowLabel ? 'row' : 'initial')
     setError(null)
-    setRowLabels(null)
+    setRowPick(null)
     try {
       const imageBase64 = await fileToBase64(file)
       const result = await api.parseSchedule({ imageBase64, myRowLabel })
@@ -71,7 +71,7 @@ export function ScheduleStep({ onParsed, onBack }: ScheduleStepProps) {
     } catch (e) {
       const rowLabelErr = asRowLabelError(e)
       if (rowLabelErr) {
-        setRowLabels(rowLabelErr.rowLabels)
+        setRowPick({ labels: rowLabelErr.rowLabels, previews: rowLabelErr.rowPreviews })
       } else if (e instanceof ApiError) {
         // 서버가 응답은 했지만(4xx/5xx) 분석에 실패한 경우
         setError('근무표를 분석하지 못했어요. 다시 시도해주세요.')
@@ -88,13 +88,14 @@ export function ScheduleStep({ onParsed, onBack }: ScheduleStepProps) {
   if (analyzing) return <AnalyzingView phase={analyzing} />
 
   // 내 줄 고르기 — 정식 단계로 띄운다
-  if (rowLabels) {
+  if (rowPick) {
     return (
       <RowPickView
-        labels={rowLabels}
+        labels={rowPick.labels}
+        previews={rowPick.previews}
         onPick={register}
         onBack={() => {
-          setRowLabels(null)
+          setRowPick(null)
         }}
       />
     )
@@ -243,10 +244,13 @@ function AnalyzingView({ phase }: { phase: AnalyzePhase }) {
  */
 function RowPickView({
   labels,
+  previews,
   onPick,
   onBack,
 }: {
   labels: string[]
+  /** rowLabels와 짝이 맞을 때만 온다 — 없으면(구버전 백엔드 등) 이름만 보여준다 */
+  previews?: string[]
   onPick: (label: string) => void
   onBack: () => void
 }) {
@@ -268,14 +272,21 @@ function RowPickView({
       </p>
 
       <div className="mt-5 space-y-2">
-        {labels.map((label) => (
+        {labels.map((label, i) => (
           <button
             key={label}
             type="button"
             onClick={() => onPick(label)}
             className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-[#111111]/30 px-4 py-3.5 text-left backdrop-blur-md transition-colors hover:bg-[#111111]/45"
           >
-            <span className="text-[13px] tracking-[-0.025em] text-white">{label}</span>
+            <span>
+              <span className="block text-[13px] tracking-[-0.025em] text-white">{label}</span>
+              {previews?.[i] && (
+                <span className="mt-0.5 block font-mono text-[11px] tracking-[-0.01em] text-white/40">
+                  {previews[i]}
+                </span>
+              )}
+            </span>
             <span className="text-[12px] tracking-[-0.025em] text-white/45">이 줄이에요</span>
           </button>
         ))}

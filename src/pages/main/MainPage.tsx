@@ -33,6 +33,8 @@ interface DaySegment {
   type: string
   start: string // HH:mm, 그 날짜 안으로 자정 기준 clip됨
   end: string // HH:mm, 자정에 걸치면 "24:00"
+  startAbs: number // toAbsoluteSegments와 같은 좌표계(분) — "지금"과 비교해 지난/진행/예정을 가른다
+  endAbs: number
 }
 
 function toMinutes(hhmm: string): number {
@@ -87,10 +89,57 @@ function daySlice(
         type: s.type,
         start: fmtMinutes(clipStart),
         end: fmtMinutes(clipEnd),
+        startAbs: clipStart,
+        endAbs: clipEnd,
       })
     }
   }
   return out
+}
+
+/**
+ * origin(첫 세그먼트 시작 시각, 0~1439분)을 기준으로 임의의 시각(clock, 0~1439분)을
+ * 같은 좌표계의 절대분으로 접는다 — origin보다 이르면 다음날로 넘어간 것으로 본다.
+ * "지금"과 카페인/식사 제한처럼 점 시각인 값 모두 이 좌표계로 옮겨야 대소 비교가 맞는다.
+ */
+function foldToOrigin(origin: number, clock: number): number {
+  return clock >= origin ? clock : clock + 1440
+}
+
+type RowStatus = 'past' | 'current' | 'upcoming'
+
+function statusFor(nowAbs: number, startAbs: number, endAbs: number): RowStatus {
+  if (nowAbs >= endAbs) return 'past'
+  if (nowAbs < startAbs) return 'upcoming'
+  return 'current'
+}
+
+/**
+ * 히어로 카운트다운이 뭘 향해 갈지 결정한다 — 자는 중이면 기상까지, 근무 중이면 퇴근까지,
+ * 그 외(자유시간·식사 등)면 다음 수면(주수면/보조수면/파워냅)까지. abs는 dayOffset 클립 없는
+ * 전체 체인이라 "오늘 안엔 없고 내일 새벽에야 자는" 경우도 nextSleep으로 찾아진다.
+ */
+function findHeroTarget(
+  abs: { type: string; startAbs: number; endAbs: number }[],
+  nowAbs: number,
+): { label: string; targetAbs: number } | null {
+  const isSleep = (t: string) => t.includes('수면') || t.includes('냅')
+  const current = abs.find((s) => s.startAbs <= nowAbs && nowAbs < s.endAbs)
+  if (current) {
+    if (isSleep(current.type)) return { label: '기상까지', targetAbs: current.endAbs }
+    if (current.type === '근무') return { label: '퇴근까지', targetAbs: current.endAbs }
+  }
+  const nextSleep = abs.find((s) => s.startAbs >= nowAbs && isSleep(s.type))
+  return nextSleep ? { label: '취침까지', targetAbs: nextSleep.startAbs } : null
+}
+
+/** 남은 초 → "HH:MM:SS" */
+function fmtCountdown(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(totalSeconds))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 }
 
 /**
@@ -130,7 +179,12 @@ function reasonsForCategory(category: string, segments: string[], modeReason: st
   return [modeReason]
 }
 
-function buildRows(daySegs: DaySegment[], data: TodayRoutineView): RoutineRowVM[] {
+function buildRows(
+  daySegs: DaySegment[],
+  data: TodayRoutineView,
+  nowAbs: number,
+  origin: number,
+): RoutineRowVM[] {
   const segments = splitReasonSegments(data.aiReason)
   const withReason = (category: string): string[] =>
     reasonsForCategory(category, segments, data.modeReason)
@@ -140,20 +194,26 @@ function buildRows(daySegs: DaySegment[], data: TodayRoutineView): RoutineRowVM[
     time: `${seg.start} ~ ${seg.end}`,
     detail: '-',
     reasons: withReason(seg.type),
+    status: statusFor(nowAbs, seg.startAbs, seg.endAbs),
   }))
   const m = data.mealConstraints
   if (m) {
+    // 점 시각(카페인/식사 제한)도 같은 좌표계로 접어야 지난/예정 판정이 timeline 행과 어긋나지 않는다
+    const caffeineAbs = foldToOrigin(origin, toMinutes(fromApiTime(m.caffeineCutoff)))
+    const bigMealAbs = foldToOrigin(origin, toMinutes(fromApiTime(m.bigMealCutoff)))
     rows.push({
       category: '카페인 제한',
       time: fromApiTime(m.caffeineCutoff),
       detail: '이후 금지',
       reasons: withReason('카페인 제한'),
+      status: statusFor(nowAbs, caffeineAbs, caffeineAbs),
     })
     rows.push({
       category: '식사 제한',
       time: fromApiTime(m.bigMealCutoff),
       detail: '큰 식사 제한 시작',
       reasons: withReason('식사 제한'),
+      status: statusFor(nowAbs, bigMealAbs, bigMealAbs),
     })
   }
   return rows
@@ -202,6 +262,18 @@ export default function MainPage() {
 
   const absSegments = useMemo(() => (data ? toAbsoluteSegments(data.timeline) : []), [data])
   const daySegs = useMemo(() => daySlice(absSegments, 0), [absSegments])
+  const origin = absSegments[0]?.startAbs ?? 0
+
+  // 히어로 카운트다운 — 매초 갱신. 다른 화면에 초점이 가 있어도(background tab) 굳이 멈추지 않는다,
+  // 매초 setState 하나라 비용이 무시할 만하다.
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const nowAbs = foldToOrigin(origin, now.getHours() * 60 + now.getMinutes())
+  const heroTarget = findHeroTarget(absSegments, nowAbs)
+  const remainingSeconds = heroTarget ? heroTarget.targetAbs * 60 - (nowAbs * 60 + now.getSeconds()) : 0
 
   return (
     <div className="min-h-full w-full px-5 pt-14 pb-28" style={{ background: theme.gradient }}>
@@ -242,12 +314,26 @@ export default function MainPage() {
         </div>
       )}
 
-      {/* 시차 표시 + 무월 게이지 */}
+      {/* 히어로: 지금 뭘 향해 가는지(카운트다운) 먼저, 시차 문구는 그 아래로 + 무월 게이지 */}
       <div className="mt-7 flex items-start justify-between gap-4">
         <div className="flex-1">
-          <p className="text-[20px] leading-snug font-semibold tracking-[-0.03em] text-white">
-            {loading ? '불러오는 중…' : (data?.jetlag.message ?? '')}
-          </p>
+          {heroTarget ? (
+            <>
+              <p className="text-[13px] tracking-[-0.025em] text-white/70">{heroTarget.label}</p>
+              <p className="mt-0.5 text-[28px] font-semibold tracking-[-0.03em] text-white tabular-nums">
+                {fmtCountdown(remainingSeconds)}
+              </p>
+              {data && (
+                <p className="mt-1.5 text-[12px] tracking-[-0.025em] text-white/60">
+                  {data.jetlag.message}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-[20px] leading-snug font-semibold tracking-[-0.03em] text-white">
+              {loading ? '불러오는 중…' : (data?.jetlag.message ?? '')}
+            </p>
+          )}
           {data && (
             <button
               onClick={() => navigate('/collectbook', { viewTransition: true })}
@@ -280,7 +366,7 @@ export default function MainPage() {
         <RoutineTable
           accent={theme.accent}
           dateLabel={data?.date ?? ''}
-          rows={data ? buildRows(daySegs, data) : []}
+          rows={data ? buildRows(daySegs, data, nowAbs, origin) : []}
         />
       </div>
 

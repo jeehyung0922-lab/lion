@@ -17,12 +17,19 @@ import { ChevronDown } from 'lucide-react'
  *    통째로 버리고 다시 마운트한다 — 그러면 클릭으로 상태는 바뀌어도 트랜지션이 재생될 새도 없이
  *    다음 초의 리렌더가 지워버려 애니메이션이 아예 안 보이는 것처럼 된다(실측으로 확인한 버그).
  */
+export interface RoutineWarningVM {
+  label: string
+  time: string
+}
+
 export interface RoutineRowVM {
   category: string
   time: string
   detail: string
   reasons: string[]
   status: 'past' | 'current' | 'upcoming'
+  /** 이 블록 시간대에 포함되는 카페인/식사 제한 등 — 배지로 옆에 띄운다 */
+  warnings?: RoutineWarningVM[]
 }
 
 const cellCls =
@@ -133,6 +140,23 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
           <span className={`${cellCls} tabular-nums text-white/90`}>{row.time}</span>
           <span className={`${cellCls} text-white/90`}>{row.detail}</span>
         </button>
+
+        {/* 이 블록 시간대에 걸리는 카페인/식사 제한 경고 — 블록 너비 전체를 덮는 바 형태 */}
+        {row.warnings && row.warnings.length > 0 && (
+          <div className="mt-1.5 space-y-1.5">
+            {row.warnings.map((w, wi) => (
+              <div
+                key={wi}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/25 bg-red-500/10 py-2 text-[12px] tracking-[-0.025em] text-red-300"
+              >
+                <span>⚠</span>
+                <span>
+                  {w.label} {w.time}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* 근거 드롭다운 (이 행과 관련된 근거만) */}
         {isOpen && row.reasons.length > 0 && (

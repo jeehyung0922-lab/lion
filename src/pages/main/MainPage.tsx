@@ -197,26 +197,44 @@ function buildRows(
     reasons: withReason(seg.type),
     status: statusFor(nowAbs, seg.startAbs, seg.endAbs),
   }))
+
   const m = data.mealConstraints
   if (m) {
-    // 점 시각(카페인/식사 제한)도 같은 좌표계로 접어야 지난/예정 판정이 timeline 행과 어긋나지 않는다
-    const caffeineAbs = foldToOrigin(origin, toMinutes(fromApiTime(m.caffeineCutoff)))
-    const bigMealAbs = foldToOrigin(origin, toMinutes(fromApiTime(m.bigMealCutoff)))
-    rows.push({
-      category: '카페인 제한',
-      time: fromApiTime(m.caffeineCutoff),
-      detail: '이후 금지',
-      reasons: withReason('카페인 제한'),
-      status: statusFor(nowAbs, caffeineAbs, caffeineAbs),
-    })
-    rows.push({
-      category: '식사 제한',
-      time: fromApiTime(m.bigMealCutoff),
-      detail: '큰 식사 제한 시작',
-      reasons: withReason('식사 제한'),
-      status: statusFor(nowAbs, bigMealAbs, bigMealAbs),
-    })
+    // 점 시각(카페인/식사 제한)도 같은 좌표계로 접어야 어느 블록에 걸리는지 정확히 판정된다
+    const cutoffs: { label: string; time: string; abs: number }[] = [
+      {
+        label: '카페인 제한',
+        time: fromApiTime(m.caffeineCutoff),
+        abs: foldToOrigin(origin, toMinutes(fromApiTime(m.caffeineCutoff))),
+      },
+      {
+        label: '식사 제한',
+        time: fromApiTime(m.bigMealCutoff),
+        abs: foldToOrigin(origin, toMinutes(fromApiTime(m.bigMealCutoff))),
+      },
+    ]
+
+    for (const cutoff of cutoffs) {
+      // 포함되는 블록을 찾아 경고 배지로 붙인다. 정확히 경계(=end)에 걸치면 뒤 블록으로 붙인다.
+      const hostIdx = daySegs.findIndex(
+        (seg) => cutoff.abs >= seg.startAbs && cutoff.abs < seg.endAbs,
+      )
+      if (hostIdx >= 0) {
+        const host = rows[hostIdx]
+        host.warnings = [...(host.warnings ?? []), { label: cutoff.label, time: cutoff.time }]
+      } else {
+        // 걸치는 블록이 없으면(예: 오늘 자유시간이 아예 없음) 별도 행으로 폴백
+        rows.push({
+          category: cutoff.label,
+          time: cutoff.time,
+          detail: '이후 제한',
+          reasons: withReason(cutoff.label),
+          status: statusFor(nowAbs, cutoff.abs, cutoff.abs),
+        })
+      }
+    }
   }
+
   return rows
 }
 

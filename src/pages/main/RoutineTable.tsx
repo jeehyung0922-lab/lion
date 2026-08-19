@@ -6,8 +6,7 @@ import { ChevronDown } from 'lucide-react'
  * 실제 API(TodayRoutineView.timeline + mealConstraints)로부터 만든 rows를 받는다.
  * ⚠️ 백엔드는 항목별 근거를 따로 안 주고 aiReason 하나에 여러 근거를 이어서 준다 —
  *    MainPage.buildRows()가 카테고리별로 관련 있는 조각만 골라 row.reasons에 담아준다.
- * ⚠️ 백엔드 timeline이 실제론 하루보다 길지만(이슈 5), 여기선 오늘(00:00~24:00) 몫만 보여준다
- *    — 그래서 내일로 넘어가는 주요식사/주수면 등은 여기 안 보일 수 있음(의도된 트레이드오프).
+ * 백엔드가 내려준 timeline을 자르지 않고 그대로 다 보여준다.
  *
  * row.status(지금 시각 기준 past/current/upcoming)로 지난·남은 일정은 각각 접어두고, 지금
  * 진행 중인 것만 항상 보여준다. 접힌 그룹을 펼치면 위에서 아래로 순서대로 나타나고(스태거),

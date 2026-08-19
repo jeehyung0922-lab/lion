@@ -15,12 +15,6 @@ import { ReplanSheet } from './ReplanSheet'
  */
 
 /**
- * ⚠️ 백엔드 timeline은 실제로 하루보다 훨씬 긴 분량을 한 번에 준다(이슈 5로 백엔드에 보고함).
- * "오늘의 루틴"이라면서 자정을 넘나드는 구간(예: 자유시간 14:00~10:00)이 그대로 오면
- * 시작~종료를 그대로 보여줄 때 오해를 부르므로, 자정(오늘 00:00~24:00) 기준으로 잘라서
- * 오늘 몫만 보여준다 — 그 결과 내일로 넘어가는 주요식사/주수면 등은 오늘 화면엔 안 보일 수 있음.
- */
-/**
  * 재설계 예시 칩 — 버튼 하나보다 "무엇을 말할 수 있는지"를 알려주는 쪽이 진입률이 높다.
  * 누르면 text가 채워진 채로 대화가 열려, 사용자는 전송만 누르면 된다.
  */
@@ -32,8 +26,8 @@ const REPLAN_CHIPS: { label: string; text: string }[] = [
 
 interface DaySegment {
   type: string
-  start: string // HH:mm, 그 날짜 안으로 자정 기준 clip됨
-  end: string // HH:mm, 자정에 걸치면 "24:00"
+  start: string // HH:mm
+  end: string // HH:mm
   startAbs: number // toAbsoluteSegments와 같은 좌표계(분) — "지금"과 비교해 지난/진행/예정을 가른다
   endAbs: number
 }
@@ -68,34 +62,18 @@ function toAbsoluteSegments(
 }
 
 /**
- * dayOffset(0=오늘, 1=내일, ...)에 해당하는 24시간 구간만 잘라 반환.
- * ⚠️ "오늘 00:00~24:00"이 아니라 "이 세그먼트 체인이 시작하는 실제 시각부터 24시간"이 기준이다 —
- * toAbsoluteSegments가 첫 세그먼트의 실제 시각(예: 야간 근무면 22:00)을 절대분의 origin으로 잡기
- * 때문에, 자정(절대분 0) 기준으로 자르면 야간 근무처럼 하루가 22:00에 시작하는 경우 22:00~24:00만
- * 남고 그 이후(다음날로 넘어가는 식사·수면 전부)가 잘려나간다. origin을 첫 세그먼트 시작으로 맞춘다.
+ * 절대분 세그먼트 체인을 표에 쓸 DaySegment로 그대로 매핑한다.
+ * ⚠️ 예전엔 "오늘(24시간)" 구간으로 잘라서 보여줬지만, timeline은 백엔드가 이미 하루치로
+ * 계산해서 내려주는 값이라 잘라낼 필요가 없다 — 받은 timeline을 그대로 다 보여준다.
  */
-function daySlice(
-  abs: { type: string; startAbs: number; endAbs: number }[],
-  dayOffset: number,
-): DaySegment[] {
-  const origin = abs.length > 0 ? abs[0].startAbs : 0
-  const dayStart = origin + dayOffset * 1440
-  const dayEnd = dayStart + 1440
-  const out: DaySegment[] = []
-  for (const s of abs) {
-    const clipStart = Math.max(s.startAbs, dayStart)
-    const clipEnd = Math.min(s.endAbs, dayEnd)
-    if (clipStart < clipEnd) {
-      out.push({
-        type: s.type,
-        start: fmtMinutes(clipStart),
-        end: fmtMinutes(clipEnd),
-        startAbs: clipStart,
-        endAbs: clipEnd,
-      })
-    }
-  }
-  return out
+function daySlice(abs: { type: string; startAbs: number; endAbs: number }[]): DaySegment[] {
+  return abs.map((s) => ({
+    type: s.type,
+    start: fmtMinutes(s.startAbs),
+    end: fmtMinutes(s.endAbs),
+    startAbs: s.startAbs,
+    endAbs: s.endAbs,
+  }))
 }
 
 /**
@@ -264,7 +242,7 @@ export default function MainPage() {
     wakeCheckin === 'card' || (showClockoutCheckin && clockoutCheckin === 'card')
 
   const absSegments = useMemo(() => (data ? toAbsoluteSegments(data.timeline) : []), [data])
-  const daySegs = useMemo(() => daySlice(absSegments, 0), [absSegments])
+  const daySegs = useMemo(() => daySlice(absSegments), [absSegments])
   const origin = absSegments[0]?.startAbs ?? 0
 
   // 히어로 카운트다운 — 매초 갱신. 다른 화면에 초점이 가 있어도(background tab) 굳이 멈추지 않는다,
@@ -371,7 +349,7 @@ export default function MainPage() {
           </div>
         )}
 
-        {/* 오늘의 루틴 표 — timeline이 실제론 더 길지만(이슈 5) 오늘(00:00~24:00) 몫만 보여줌 */}
+        {/* 오늘의 루틴 표 — 백엔드가 내려준 timeline을 그대로 다 보여줌 */}
         <div className="mt-7">
           <RoutineTable
             accent={theme.accent}

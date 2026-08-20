@@ -147,13 +147,14 @@ export default function OnboardingPage() {
   }
 
   function handleParsed(result: ParseScheduleResponse) {
-    // 시작일을 물어야 하는 경우 둘: (1) 표에 월/연도가 아예 안 적혀 있어 ai-server가 오늘 달로
-    // 지어낸 경우(monthGuessed), (2) 월/연도를 읽긴 읽었지만 그게 지난 연도 등이라 결과에 오늘이
-    // 아예 없는 경우 — 후자를 monthGuessed만 보고 걸러내면 놓친다(사진을 정확히 읽었어도 그 안의
-    // 연도 자체가 오늘과 안 맞을 수 있어서). 두 경우 다 칸별로 고치게 두지 않고 시작일 하나만
-    // 물어본다(handleStartDateConfirm이 전체를 그만큼 민다).
+    // 시작일을 물어야 하는 기준은 오직 하나 — 파싱 결과에 오늘 날짜가 실제로 있는지다.
+    // monthGuessed는 "연/월을 아예 못 읽었는지"만 의미할 뿐 오늘 포함 여부와는 무관해서,
+    // monthGuessed가 true여도(연/월을 못 읽어 오늘 기준으로 지어냈는데 그게 맞아떨어진 경우)
+    // 오늘이 이미 포함돼 있으면 굳이 시작일을 다시 물을 필요가 없다. 반대로 monthGuessed가
+    // false여도(연/월을 정확히 읽었어도) 그 연도 자체가 지난 연도면 오늘이 없을 수 있어서
+    // 이 경우엔 물어야 한다 — 그래서 monthGuessed는 아예 보지 않는다.
     const alreadyIncludesToday = result.shifts.some((s) => s.date === today)
-    if (result.monthGuessed || !alreadyIncludesToday) {
+    if (!alreadyIncludesToday) {
       setRawParsed(result)
       setStartDateError(null)
       setStep('startDate')
@@ -168,6 +169,11 @@ export default function OnboardingPage() {
   /**
    * 표의 첫 근무일이 실제로 며칠인지 받아, POST /schedule/anchor-start-date로 지어낸 날짜 전체를
    * 그 차이만큼 밀어 받는다. DB 접근 없는 순수 계산이라 저장 전 단계에서 몇 번을 다시 불러도 안전.
+   * ⚠️ 백엔드 ShiftType enum은 DAY/EVENING/NIGHT/OFF만 받는다 — shifts[].shiftType은 사진에
+   * 찍힌 원본 코드("N","D" 등) 그대로라 그 값을 바로 보내면 Jackson 역직렬화가 깨져 400이 난다.
+   * shiftTypes[]로 매핑한 카테고리(mapped)로 바꿔서 보내야 한다. 응답은 shiftType 없이 date만
+   * 신뢰하고(원본 코드는 요청 배열과 같은 순서·길이로 그대로 짝지어 복원) — rawLabel 기반으로
+   * 동작하는 toScheduleDays/AiResultStep의 카드별 편집이 그대로 살아있게 하기 위해서다.
    * ⚠️ 민 결과에 오늘이 여전히 없으면(예: shiftCount가 작아서 너무 과거로 밀면 범위 밖으로 빠짐)
    * 다음 단계로 넘기지 않고 startDate 화면에 에러와 함께 붙잡아둔다 — 그대로 두면 한참 뒤(마지막
    * 등록 버튼)에서야 SCHEDULE_MISSING_TODAY로 막혀서 사용자가 원인을 알기 어렵다.
@@ -177,15 +183,23 @@ export default function OnboardingPage() {
     setStartDateSubmitting(true)
     setStartDateError(null)
     try {
-      const { shifts: shiftedShifts } = await api.anchorScheduleStartDate({
-        shifts: rawParsed.shifts,
+      const shiftTypes = toShiftTypeInfos(rawParsed.shiftTypes)
+      const mappedByRawLabel = new Map(shiftTypes.map((t) => [t.rawLabel, t.shift]))
+      const { shifts: shiftedDates } = await api.anchorScheduleStartDate({
+        shifts: rawParsed.shifts.map((s) => ({
+          date: s.date,
+          shiftType: mappedByRawLabel.get(s.shiftType) ?? 'OFF',
+        })),
         newStartDate: startDate,
       })
+      const shiftedShifts = rawParsed.shifts.map((s, i) => ({
+        date: shiftedDates[i].date,
+        shiftType: s.shiftType,
+      }))
       if (!shiftedShifts.some((s) => s.date === today)) {
         setStartDateError('이 날짜로는 오늘이 근무표에 포함되지 않아요. 다른 날짜를 골라주세요.')
         return
       }
-      const shiftTypes = toShiftTypeInfos(rawParsed.shiftTypes)
       const schedule = toScheduleDays(shiftedShifts, shiftTypes)
       setParsed({ shiftTypes, schedule })
       setRawParsed(null)

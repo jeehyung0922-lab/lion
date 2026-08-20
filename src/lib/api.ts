@@ -154,6 +154,9 @@ export interface ShiftDay {
 export interface ParseScheduleResponse {
   shiftTypes: ShiftTypeDef[]
   shifts: ShiftDay[]
+  /** 표에 월이 하나도 안 적혀 있어 ai-server가 오늘 달로 지어냈을 때 true.
+   *  shifts[].date의 순서는 여전히 신뢰할 수 있으므로, 시작일 하나만 물어서 전체를 그만큼 민다. */
+  monthGuessed?: boolean
 }
 
 export interface ShiftDto {

@@ -10,11 +10,13 @@ import {
 } from './onboardingData'
 import { PersonalizeStep } from './steps/PersonalizeStep'
 import { ScheduleStep } from './steps/ScheduleStep'
+import { StartDateStep } from './steps/StartDateStep'
 import { AiResultStep } from './steps/AiResultStep'
 
 /**
  * 온보딩 (내 담당) — 스플래시(SplashPage)에서 진입.
- * 순서: 근무표 등록·AI 파싱 → AI 분석 확인·보정 → 개인화 입력 → 프로필/근무표 등록(API) → 메인
+ * 순서: 근무표 등록·AI 파싱 → (월/연도 못 읽었으면) 시작일 선택 → AI 분석 확인·보정
+ *      → 개인화 입력 → 프로필/근무표 등록(API) → 메인
  * ⚠️ 근무표를 먼저 받는다 — 사용자가 이 앱이 뭘 해주는지 본 뒤에 개인정보를 요구하기 위해서다.
  *    submitProfile은 원래부터 마지막(handleSubmit)에만 호출되고 parseSchedule은 userId 없이 불리므로,
  *    단계 순서만 바꾸면 되고 백엔드 계약은 그대로다.
@@ -22,7 +24,24 @@ import { AiResultStep } from './steps/AiResultStep'
  * 단체 근무표 대응: ScheduleStep이 myRowLabel 없이 최초 파싱을 시도하고,
  * AI가 본인 행을 특정 못하면(422 ROW_LABEL_REQUIRED) 감지된 rowLabels 중 고른 값으로 재호출한다.
  */
-type Step = 0 | 1 | 2
+type Step = 'schedule' | 'startDate' | 'aiResult' | 'personalize'
+
+/** date-fns 없이 YYYY-MM-DD 문자열만으로 날짜 이동/차이 계산 — 타임존 영향 없게 UTC로 고정 */
+function addDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() + days)
+  return dt.toISOString().slice(0, 10)
+}
+function daysBetween(a: string, b: string): number {
+  const [ay, am, ad] = a.split('-').map(Number)
+  const [by, bm, bd] = b.split('-').map(Number)
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000)
+}
+/** ai-server가 조립한 날짜 중 가장 이른 날 — 시작일 보정의 기준점(달력도 이 달에서 연다) */
+function guessedFirstDate(shifts: { date: string }[]): string {
+  return shifts.reduce((min, s) => (s.date < min ? s.date : min), shifts[0].date)
+}
 
 function loadForm(): OnboardingForm {
   const saved = localStorage.getItem('kinglion.profile')
@@ -85,12 +104,14 @@ function toScheduleDays(
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
-  const [step, setStep] = useState<Step>(0)
+  const [step, setStep] = useState<Step>('schedule')
   const [form, setForm] = useState<OnboardingForm>(loadForm)
   const [parsed, setParsed] = useState<{ shiftTypes: ShiftTypeInfo[]; schedule: ScheduleDay[] }>({
     shiftTypes: [],
     schedule: [],
   })
+  /** monthGuessed일 때만 채워짐 — 시작일을 고르기 전까지 원본 파싱 결과를 들고 있는다 */
+  const [rawParsed, setRawParsed] = useState<ParseScheduleResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [errorFading, setErrorFading] = useState(false)
@@ -112,16 +133,35 @@ export default function OnboardingPage() {
   }
 
   function handleParsed(result: ParseScheduleResponse) {
+    // 표에 월/연도가 아예 안 적혀 있으면 ai-server가 오늘 달로 지어낸 것 — 칸별로 고치게
+    // 두지 않고 시작일 하나만 물어본다(handleStartDateConfirm이 전체를 그만큼 민다).
+    if (result.monthGuessed) {
+      setRawParsed(result)
+      setStep('startDate')
+      return
+    }
     const shiftTypes = toShiftTypeInfos(result.shiftTypes)
     const schedule = toScheduleDays(result.shifts, shiftTypes)
     setParsed({ shiftTypes, schedule })
-    setStep(1)
+    setStep('aiResult')
+  }
+
+  /** 표의 첫 근무일이 실제로 며칠인지 받아, 지어낸 날짜 전체를 그 차이만큼 밀어서 확정한다 */
+  function handleStartDateConfirm(startDate: string) {
+    if (!rawParsed) return
+    const offset = daysBetween(guessedFirstDate(rawParsed.shifts), startDate)
+    const shiftedShifts = rawParsed.shifts.map((s) => ({ ...s, date: addDays(s.date, offset) }))
+    const shiftTypes = toShiftTypeInfos(rawParsed.shiftTypes)
+    const schedule = toScheduleDays(shiftedShifts, shiftTypes)
+    setParsed({ shiftTypes, schedule })
+    setRawParsed(null)
+    setStep('aiResult')
   }
 
   /** 확인·보정 결과를 담아두고 개인화 입력으로. 실제 등록은 마지막 단계에서 한 번에 한다. */
   function handleAiConfirm(shiftTypes: ShiftTypeInfo[], schedule: ScheduleDay[]) {
     setParsed({ shiftTypes, schedule })
-    setStep(2)
+    setStep('personalize')
   }
 
   async function handleSubmit() {
@@ -176,21 +216,34 @@ export default function OnboardingPage() {
     <div className="relative h-full">
       {/* key={step} — 단계가 바뀔 때마다 래퍼가 새로 마운트돼 step-in 애니메이션이 다시 재생된다 */}
       <div key={step} className="step-in h-full">
-        {step === 0 && <ScheduleStep onParsed={handleParsed} onBack={() => navigate('/')} />}
-        {step === 1 && (
+        {step === 'schedule' && (
+          <ScheduleStep onParsed={handleParsed} onBack={() => navigate('/')} />
+        )}
+        {step === 'startDate' && rawParsed && (
+          <StartDateStep
+            shiftCount={rawParsed.shifts.length}
+            guessedStart={guessedFirstDate(rawParsed.shifts)}
+            onConfirm={handleStartDateConfirm}
+            onBack={() => {
+              setRawParsed(null)
+              setStep('schedule')
+            }}
+          />
+        )}
+        {step === 'aiResult' && (
           <AiResultStep
             initialShiftTypes={parsed.shiftTypes}
             initialSchedule={parsed.schedule}
             onConfirm={handleAiConfirm}
-            onBack={() => setStep(0)}
+            onBack={() => setStep('schedule')}
           />
         )}
-        {step === 2 && (
+        {step === 'personalize' && (
           <PersonalizeStep
             form={form}
             update={update}
             onNext={handleSubmit}
-            onBack={() => setStep(1)}
+            onBack={() => setStep('aiResult')}
             submitting={submitting}
           />
         )}

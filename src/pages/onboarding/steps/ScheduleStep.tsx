@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { StepShell, STEP_GRADIENTS } from '../components/StepShell'
-import { api, ApiError, asRowLabelError, fileToBase64, type ParseScheduleResponse } from '@/lib/api'
+import {
+  api,
+  ApiError,
+  asApiErrorMessage,
+  asRowLabelError,
+  fileToBase64,
+  type ParseScheduleResponse,
+} from '@/lib/api'
 
 interface ScheduleStepProps {
   /** 파싱 성공 시 결과와 함께 다음 단계로 */
@@ -73,8 +80,9 @@ export function ScheduleStep({ onParsed, onBack }: ScheduleStepProps) {
       if (rowLabelErr) {
         setRowPick({ labels: rowLabelErr.rowLabels, previews: rowLabelErr.rowPreviews })
       } else if (e instanceof ApiError) {
-        // 서버가 응답은 했지만(4xx/5xx) 분석에 실패한 경우
-        setError('근무표를 분석하지 못했어요. 다시 시도해주세요.')
+        // 서버가 응답은 했지만(4xx/5xx) 분석에 실패한 경우 — message가 있으면(예: IMAGE_UNREADABLE
+        // 외에 백엔드가 이유를 알려주는 케이스) 그대로 보여주고, 없으면 기존 문구로 폴백한다
+        setError(asApiErrorMessage(e) ?? '근무표를 분석하지 못했어요. 다시 시도해주세요.')
       } else {
         // fetch 자체가 실패 — 서버가 꺼져있거나 네트워크 문제
         setError('서버에 연결할 수 없어요. 인터넷 연결을 확인하거나 잠시 후 다시 시도해주세요.')

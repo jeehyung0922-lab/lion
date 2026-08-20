@@ -12,6 +12,7 @@ import {
 import { MoonGauge } from './MoonGauge'
 import { RoutineTable, type RoutineRowVM } from './RoutineTable'
 import { CheckInBadge, CheckInCard, useCheckinState } from './CheckInCard'
+import { StartDateFixCard } from './StartDateFixCard'
 import { MAIN_THEMES, MODE_TO_THEME } from './mainTheme'
 import { ReplanSheet } from './ReplanSheet'
 
@@ -335,19 +336,10 @@ export default function MainPage() {
         {error && <p className="mt-4 text-xs text-[#ff8fb0]">{error}</p>}
 
         {outOfRange && (
-          <div className="mt-4 rounded-xl border border-white/20 bg-[#111111]/25 p-4 backdrop-blur-md">
-            <p className="text-[13px] leading-relaxed tracking-[-0.025em] text-white/85">
-              등록된 근무표에 오늘 날짜가 없어요.
-              <br />
-              이번 달 근무표를 올리면 오늘의 리듬을 만들어드릴게요.
-            </p>
-            <button
-              onClick={() => navigate('/onboarding', { viewTransition: true })}
-              className="mt-3 w-full rounded-lg border border-white/20 bg-white/10 py-2.5 text-[13px] font-medium tracking-[-0.025em] text-white transition-colors hover:bg-white/15"
-            >
-              근무표 등록하기
-            </button>
-          </div>
+          <StartDateFixCard
+            onFixed={refreshToday}
+            onReRegister={() => navigate('/onboarding', { viewTransition: true })}
+          />
         )}
 
         {/* 히어로: 지금 뭘 향해 가는지(카운트다운) 먼저, 시차 문구는 그 아래로 + 무월 게이지 */}

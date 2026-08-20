@@ -39,14 +39,17 @@ function addDays(dateStr: string, days: number): string {
   dt.setUTCDate(dt.getUTCDate() + days)
   return dt.toISOString().slice(0, 10)
 }
-function daysBetween(a: string, b: string): number {
-  const [ay, am, ad] = a.split('-').map(Number)
-  const [by, bm, bd] = b.split('-').map(Number)
-  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000)
-}
 /** ai-server가 조립한 날짜 중 가장 이른 날 — 시작일 보정의 기준점(달력도 이 달에서 연다) */
 function guessedFirstDate(shifts: { date: string }[]): string {
   return shifts.reduce((min, s) => (s.date < min ? s.date : min), shifts[0].date)
+}
+/** 로컬 기준 오늘(YYYY-MM-DD) — 근무표에 오늘이 포함되는지 프론트에서도 미리 검증할 때 쓴다 */
+function todayLocalISO(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function loadForm(): OnboardingForm {
@@ -116,8 +119,13 @@ export default function OnboardingPage() {
     shiftTypes: [],
     schedule: [],
   })
-  /** monthGuessed일 때만 채워짐 — 시작일을 고르기 전까지 원본 파싱 결과를 들고 있는다 */
+  /** 시작일 화면으로 빠졌을 때만 채워짐(monthGuessed거나, 읽은 그대로에 오늘이 없는 경우) —
+   *  시작일을 고르기 전까지 원본 파싱 결과를 들고 있는다 */
   const [rawParsed, setRawParsed] = useState<ParseScheduleResponse | null>(null)
+  /** 고른 시작일로 밀어도 여전히 오늘이 근무표에 안 들어올 때 — startDate 화면에 남겨 다시 고르게 함 */
+  const [startDateError, setStartDateError] = useState<string | null>(null)
+  const [startDateSubmitting, setStartDateSubmitting] = useState(false)
+  const [today] = useState(todayLocalISO)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [errorFading, setErrorFading] = useState(false)
@@ -139,10 +147,15 @@ export default function OnboardingPage() {
   }
 
   function handleParsed(result: ParseScheduleResponse) {
-    // 표에 월/연도가 아예 안 적혀 있으면 ai-server가 오늘 달로 지어낸 것 — 칸별로 고치게
-    // 두지 않고 시작일 하나만 물어본다(handleStartDateConfirm이 전체를 그만큼 민다).
-    if (result.monthGuessed) {
+    // 시작일을 물어야 하는 경우 둘: (1) 표에 월/연도가 아예 안 적혀 있어 ai-server가 오늘 달로
+    // 지어낸 경우(monthGuessed), (2) 월/연도를 읽긴 읽었지만 그게 지난 연도 등이라 결과에 오늘이
+    // 아예 없는 경우 — 후자를 monthGuessed만 보고 걸러내면 놓친다(사진을 정확히 읽었어도 그 안의
+    // 연도 자체가 오늘과 안 맞을 수 있어서). 두 경우 다 칸별로 고치게 두지 않고 시작일 하나만
+    // 물어본다(handleStartDateConfirm이 전체를 그만큼 민다).
+    const alreadyIncludesToday = result.shifts.some((s) => s.date === today)
+    if (result.monthGuessed || !alreadyIncludesToday) {
       setRawParsed(result)
+      setStartDateError(null)
       setStep('startDate')
       return
     }
@@ -152,16 +165,36 @@ export default function OnboardingPage() {
     setStep('aiResult')
   }
 
-  /** 표의 첫 근무일이 실제로 며칠인지 받아, 지어낸 날짜 전체를 그 차이만큼 밀어서 확정한다 */
-  function handleStartDateConfirm(startDate: string) {
+  /**
+   * 표의 첫 근무일이 실제로 며칠인지 받아, POST /schedule/anchor-start-date로 지어낸 날짜 전체를
+   * 그 차이만큼 밀어 받는다. DB 접근 없는 순수 계산이라 저장 전 단계에서 몇 번을 다시 불러도 안전.
+   * ⚠️ 민 결과에 오늘이 여전히 없으면(예: shiftCount가 작아서 너무 과거로 밀면 범위 밖으로 빠짐)
+   * 다음 단계로 넘기지 않고 startDate 화면에 에러와 함께 붙잡아둔다 — 그대로 두면 한참 뒤(마지막
+   * 등록 버튼)에서야 SCHEDULE_MISSING_TODAY로 막혀서 사용자가 원인을 알기 어렵다.
+   */
+  async function handleStartDateConfirm(startDate: string) {
     if (!rawParsed) return
-    const offset = daysBetween(guessedFirstDate(rawParsed.shifts), startDate)
-    const shiftedShifts = rawParsed.shifts.map((s) => ({ ...s, date: addDays(s.date, offset) }))
-    const shiftTypes = toShiftTypeInfos(rawParsed.shiftTypes)
-    const schedule = toScheduleDays(shiftedShifts, shiftTypes)
-    setParsed({ shiftTypes, schedule })
-    setRawParsed(null)
-    setStep('aiResult')
+    setStartDateSubmitting(true)
+    setStartDateError(null)
+    try {
+      const { shifts: shiftedShifts } = await api.anchorScheduleStartDate({
+        shifts: rawParsed.shifts,
+        newStartDate: startDate,
+      })
+      if (!shiftedShifts.some((s) => s.date === today)) {
+        setStartDateError('이 날짜로는 오늘이 근무표에 포함되지 않아요. 다른 날짜를 골라주세요.')
+        return
+      }
+      const shiftTypes = toShiftTypeInfos(rawParsed.shiftTypes)
+      const schedule = toScheduleDays(shiftedShifts, shiftTypes)
+      setParsed({ shiftTypes, schedule })
+      setRawParsed(null)
+      setStep('aiResult')
+    } catch {
+      setStartDateError('시작일을 적용하지 못했어요. 다시 시도해주세요.')
+    } finally {
+      setStartDateSubmitting(false)
+    }
   }
 
   /** 확인·보정 결과를 담아두고 개인화 입력으로. 실제 등록은 마지막 단계에서 한 번에 한다. */
@@ -231,9 +264,16 @@ export default function OnboardingPage() {
           <StartDateStep
             shiftCount={rawParsed.shifts.length}
             guessedStart={guessedFirstDate(rawParsed.shifts)}
+            today={today}
+            // 읽은 일수만큼 뒤로 밀리면 오늘이 범위 끝으로 빠져나간다 — 그보다 이전 날짜를
+            // 시작일로 고르면 밀어도 오늘이 절대 근무표에 들어올 수 없으므로 아예 못 고르게 막는다.
+            minStart={addDays(today, -(rawParsed.shifts.length - 1))}
+            error={startDateError}
+            submitting={startDateSubmitting}
             onConfirm={handleStartDateConfirm}
             onBack={() => {
               setRawParsed(null)
+              setStartDateError(null)
               setStep('schedule')
             }}
           />

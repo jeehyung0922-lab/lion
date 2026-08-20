@@ -177,8 +177,20 @@ export interface ParseScheduleResponse {
   shiftTypes: ShiftTypeDef[]
   shifts: ShiftDay[]
   /** 표에 월이 하나도 안 적혀 있어 ai-server가 오늘 달로 지어냈을 때 true.
-   *  shifts[].date의 순서는 여전히 신뢰할 수 있으므로, 시작일 하나만 물어서 전체를 그만큼 민다. */
+   *  shifts[].date의 순서는 여전히 신뢰할 수 있으므로, 시작일 하나만 물어서 전체를 그만큼 민다.
+   *  ⚠️ "오늘이 파싱 결과에 포함되는가"와는 무관한 값이다 — 연/월을 정확히 읽었어도 그 연도
+   *  자체가 지난 연도면 오늘이 빠질 수 있는데, 그 경우 이 값은 여전히 false로 온다. 오늘 포함
+   *  여부는 항상 shifts 배열을 직접 훑어서(date === todayLocalISO()) 따로 확인해야 한다. */
   monthGuessed?: boolean
+}
+
+export interface AnchorStartDateRequest {
+  /** /schedule/parse 응답(또는 화면에서 보정한) shifts 그대로 */
+  shifts: ShiftDay[]
+  newStartDate: string
+}
+export interface AnchorStartDateResponse {
+  shifts: ShiftDay[]
 }
 
 export interface ShiftDto {
@@ -348,12 +360,12 @@ export const api = {
   parseSchedule: (req: ParseScheduleApiRequest) =>
     post<ParseScheduleResponse>('/api/onboarding/schedule/parse', req),
   submitSchedule: (req: ScheduleRequest) => post<OkResponse>('/api/onboarding/schedule', req),
-  /** 요일 패턴은 유지한 채 시작일만 옮긴다 — 개별 날짜에 따로 고친 시각이 있으면 이 호출로 초기화됨 */
-  patchScheduleStartDate: (newStartDate: string) =>
-    request<OkResponse>('/api/onboarding/schedule/start-date', {
-      method: 'PATCH',
-      body: JSON.stringify({ newStartDate }),
-    }),
+  /**
+   * 저장 전(온보딩 파싱 검토 단계) 전용 — DB 접근 없는 순수 계산이라 몇 번을 다시 불러도 안전하다.
+   * 요일 순서/근무유형 패턴은 그대로 두고 최솟값 날짜를 newStartDate로 맞춰 나머지를 그 차이만큼 민다.
+   */
+  anchorScheduleStartDate: (req: AnchorStartDateRequest) =>
+    post<AnchorStartDateResponse>('/api/onboarding/schedule/anchor-start-date', req),
   submitProfile: async (req: ProfileRequest) => {
     const result = await post<ProfileResponse>('/api/onboarding/profile', req)
     localStorage.setItem(USER_ID_KEY, String(result.userId))

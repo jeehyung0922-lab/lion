@@ -178,12 +178,11 @@ export function asApiErrorMessage(e: unknown): string | null {
 }
 
 /** 파싱 응답의 시각은 "HH:mm" 평문 문자열(ApiLocalTime 객체 아님).
- *  재배포 후 백엔드가 원문 라벨(shiftType)과 별도로 자체 정규화 카테고리(mapped)+신뢰도(confidence)를
- *  같이 준다(실측 확인, 2026-08-19) — 프론트의 별칭 추정(guessShiftType)보다 이 값을 우선 신뢰한다. */
+ *  백엔드가 원문 라벨(shiftType)과 별도로 자체 정규화 카테고리(mapped)를 같이 준다 —
+ *  프론트의 별칭 추정(guessShiftType)보다 이 값을 우선 신뢰한다. */
 export interface ShiftTypeDef {
   shiftType: string
   mapped?: string
-  confidence?: string
   startTime: string
   endTime: string
 }
@@ -194,12 +193,6 @@ export interface ShiftDay {
 export interface ParseScheduleResponse {
   shiftTypes: ShiftTypeDef[]
   shifts: ShiftDay[]
-  /** 표에 월이 하나도 안 적혀 있어 ai-server가 오늘 달로 지어냈을 때 true.
-   *  shifts[].date의 순서는 여전히 신뢰할 수 있으므로, 시작일 하나만 물어서 전체를 그만큼 민다.
-   *  ⚠️ "오늘이 파싱 결과에 포함되는가"와는 무관한 값이다 — 연/월을 정확히 읽었어도 그 연도
-   *  자체가 지난 연도면 오늘이 빠질 수 있는데, 그 경우 이 값은 여전히 false로 온다. 오늘 포함
-   *  여부는 항상 shifts 배열을 직접 훑어서(date === todayLocalISO()) 따로 확인해야 한다. */
-  monthGuessed?: boolean
 }
 
 export interface AnchorStartDateRequest {

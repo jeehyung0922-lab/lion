@@ -120,7 +120,7 @@ export default function OnboardingPage() {
     shiftTypes: [],
     schedule: [],
   })
-  /** 시작일 화면으로 빠졌을 때만 채워짐(monthGuessed거나, 읽은 그대로에 오늘이 없는 경우) —
+  /** 시작일 화면으로 빠졌을 때만 채워짐(파싱 결과에 오늘이 없는 경우) —
    *  시작일을 고르기 전까지 원본 파싱 결과를 들고 있는다 */
   const [rawParsed, setRawParsed] = useState<ParseScheduleResponse | null>(null)
   /** 고른 시작일로 밀어도 여전히 오늘이 근무표에 안 들어올 때 — startDate 화면에 남겨 다시 고르게 함 */
@@ -149,11 +149,8 @@ export default function OnboardingPage() {
 
   function handleParsed(result: ParseScheduleResponse) {
     // 시작일을 물어야 하는 기준은 오직 하나 — 파싱 결과에 오늘 날짜가 실제로 있는지다.
-    // monthGuessed는 "연/월을 아예 못 읽었는지"만 의미할 뿐 오늘 포함 여부와는 무관해서,
-    // monthGuessed가 true여도(연/월을 못 읽어 오늘 기준으로 지어냈는데 그게 맞아떨어진 경우)
-    // 오늘이 이미 포함돼 있으면 굳이 시작일을 다시 물을 필요가 없다. 반대로 monthGuessed가
-    // false여도(연/월을 정확히 읽었어도) 그 연도 자체가 지난 연도면 오늘이 없을 수 있어서
-    // 이 경우엔 물어야 한다 — 그래서 monthGuessed는 아예 보지 않는다.
+    // (연/월을 정확히 읽었어도 그 연도 자체가 지난 연도면 오늘이 빠질 수 있어서, 항상 shifts
+    // 배열을 직접 훑어서 확인한다.)
     const alreadyIncludesToday = result.shifts.some((s) => s.date === today)
     if (!alreadyIncludesToday) {
       setRawParsed(result)

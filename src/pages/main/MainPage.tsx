@@ -149,15 +149,15 @@ function reasonsForCategory(category: string, segments: string[], modeReason: st
   return [modeReason]
 }
 
-/** "주요식사1"/"주요식사2" 둘 다 REASON_KEYWORDS의 "주요식사" 규칙에 걸리도록 정규화 */
+/** "식사1"/"식사2" 둘 다 REASON_KEYWORDS의 "주요식사" 규칙에 걸리도록 정규화 */
 function reasonCategoryFor(type: string): string {
-  return type === '주요식사1' || type === '주요식사2' ? '주요식사' : type
+  return type === '식사1' || type === '식사2' ? '주요식사' : type
 }
 
 const WORK_MEAL_NOTE = '근무 중 식사하세요'
 
 /**
- * 근무 있는 날의 "주요식사2"는 정밀 시각이 아니라 같은 근무 세그먼트와 완전히 동일한
+ * 근무 있는 날의 "식사2"는 정밀 시각이 아니라 같은 근무 세그먼트와 완전히 동일한
  * start/end로 내려온다(백엔드 의도 — "이 사이에 알아서 챙겨 드세요"). 그런 세그먼트는
  * 근무 블록과 겹치는 별도 타임라인 행으로 보여주지 않고, 해당 근무 행에 안내만 붙인다.
  */
@@ -168,7 +168,7 @@ function findWorkMealOverlaps(daySegs: DaySegment[]): {
   const skipIdx = new Set<number>()
   const noteByIdx = new Map<number, string>()
   daySegs.forEach((seg, i) => {
-    if (seg.type !== '주요식사2') return
+    if (seg.type !== '식사2') return
     const workIdx = daySegs.findIndex(
       (w, wi) =>
         wi !== i && w.type === '근무' && w.startAbs === seg.startAbs && w.endAbs === seg.endAbs,

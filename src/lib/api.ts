@@ -64,6 +64,11 @@ export function fromApiTime(t: ApiLocalTime): string {
   return t.slice(0, 5)
 }
 
+/** "yyyy-MM-ddTHH:mm:ss" → "HH:mm" (오늘의 루틴 timeline[]의 start/end 전용, 절대시각) */
+export function fromApiDateTime(t: ApiDateTime): string {
+  return t.slice(11, 16)
+}
+
 /** File → base64 (data: 접두어 제외) */
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -163,10 +168,13 @@ export interface ScheduleRequest {
 
 /* ---------- 오늘의 루틴 ---------- */
 
+/** "yyyy-MM-ddTHH:mm:ss" — 날짜 포함 절대시각(백엔드가 자정 넘김을 이미 반영해서 내려줌) */
+export type ApiDateTime = string
+
 export interface TimelineSegment {
   type: string
-  start: ApiLocalTime
-  end: ApiLocalTime
+  start: ApiDateTime
+  end: ApiDateTime
 }
 export interface MealConstraintsView {
   bigMealCutoff: ApiLocalTime

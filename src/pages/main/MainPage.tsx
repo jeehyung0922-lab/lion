@@ -144,6 +144,38 @@ function reasonsForCategory(category: string, segments: string[], modeReason: st
   return [modeReason]
 }
 
+/** "주요식사1"/"주요식사2" 둘 다 REASON_KEYWORDS의 "주요식사" 규칙에 걸리도록 정규화 */
+function reasonCategoryFor(type: string): string {
+  return type === '주요식사1' || type === '주요식사2' ? '주요식사' : type
+}
+
+const WORK_MEAL_NOTE = '근무 중 식사하세요'
+
+/**
+ * 근무 있는 날의 "주요식사2"는 정밀 시각이 아니라 같은 근무 세그먼트와 완전히 동일한
+ * start/end로 내려온다(백엔드 의도 — "이 사이에 알아서 챙겨 드세요"). 그런 세그먼트는
+ * 근무 블록과 겹치는 별도 타임라인 행으로 보여주지 않고, 해당 근무 행에 안내만 붙인다.
+ */
+function findWorkMealOverlaps(daySegs: DaySegment[]): {
+  skipIdx: Set<number>
+  noteByIdx: Map<number, string>
+} {
+  const skipIdx = new Set<number>()
+  const noteByIdx = new Map<number, string>()
+  daySegs.forEach((seg, i) => {
+    if (seg.type !== '주요식사2') return
+    const workIdx = daySegs.findIndex(
+      (w, wi) =>
+        wi !== i && w.type === '근무' && w.startAbs === seg.startAbs && w.endAbs === seg.endAbs,
+    )
+    if (workIdx >= 0) {
+      skipIdx.add(i)
+      noteByIdx.set(workIdx, WORK_MEAL_NOTE)
+    }
+  })
+  return { skipIdx, noteByIdx }
+}
+
 function buildRows(
   daySegs: DaySegment[],
   data: TodayRoutineView,
@@ -154,12 +186,15 @@ function buildRows(
   const withReason = (category: string): string[] =>
     reasonsForCategory(category, segments, data.modeReason)
 
-  const rows: RoutineRowVM[] = daySegs.map((seg) => ({
+  const { skipIdx, noteByIdx } = findWorkMealOverlaps(daySegs)
+
+  const rows: RoutineRowVM[] = daySegs.map((seg, i) => ({
     category: seg.type,
     time: `${seg.start} ~ ${seg.end}`,
     detail: '-',
-    reasons: withReason(seg.type),
+    reasons: withReason(reasonCategoryFor(seg.type)),
     status: statusFor(nowAbs, seg.startAbs, seg.endAbs),
+    note: noteByIdx.get(i),
   }))
 
   const m = data.mealConstraints
@@ -199,7 +234,7 @@ function buildRows(
     }
   }
 
-  return rows
+  return rows.filter((_, i) => !skipIdx.has(i))
 }
 
 export default function MainPage() {

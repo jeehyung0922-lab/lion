@@ -30,6 +30,11 @@ export interface RoutineRowVM {
   status: 'past' | 'current' | 'upcoming'
   /** 이 블록 시간대에 포함되는 카페인/식사 제한 등 — 배지로 옆에 띄운다 */
   warnings?: RoutineWarningVM[]
+  /**
+   * 제약이 아니라 안내(예: 근무 중이라 정확한 식사 시각 대신 "근무 중 식사"로 뭉뚱그려 온 경우) —
+   * warnings와 의미가 반대(하지 말라 vs 알아서 챙기라)라 빨간 경고 톤을 쓰지 않는다.
+   */
+  note?: string
 }
 
 const cellCls =
@@ -155,6 +160,13 @@ export function RoutineTable({ accent, dateLabel, rows }: RoutineTableProps) {
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* 근무 중 식사처럼 "알아서 챙기라"는 안내 — 경고(빨강)와 톤을 구분해 중립색으로 표시 */}
+        {row.note && (
+          <div className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/20 bg-white/10 py-2 text-[12px] tracking-[-0.025em] text-white/80">
+            <span>{row.note}</span>
           </div>
         )}
 

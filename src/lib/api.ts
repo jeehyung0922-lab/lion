@@ -178,8 +178,6 @@ export interface TimelineSegment {
 }
 export interface MealConstraintsView {
   bigMealCutoff: ApiLocalTime
-  nightRestrictionStart: ApiLocalTime
-  nightRestrictionEnd: ApiLocalTime
   caffeineCutoff: ApiLocalTime
 }
 export interface JetlagView {

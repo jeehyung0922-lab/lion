@@ -159,6 +159,24 @@ export function asScheduleMissingTodayError(e: unknown): ScheduleMissingTodayErr
   return null
 }
 
+/**
+ * 백엔드가 {"error": "...", "message": "..."} 형태로 내려주는 어떤 4xx/5xx든(에러 코드 무관)
+ * 사용자용 문구가 있으면 그대로 꺼내온다. SCHEDULE_MISSING_TODAY처럼 케이스별 타입 가드를 따로
+ * 안 만든 나머지 에러(INVALID_SHIFT_TRANSITION 등)도 "등록에 실패했어요" 같은 뭉뚱그린 문구
+ * 대신 백엔드가 이미 정확히 알려주는 원인을 화면에 그대로 보여주기 위한 범용 폴백.
+ * message가 없거나 JSON이 아니면 null — 그럴 때만 호출부가 자체 기본 문구를 쓰면 된다.
+ */
+export function asApiErrorMessage(e: unknown): string | null {
+  if (!(e instanceof ApiError)) return null
+  try {
+    const parsed = JSON.parse(e.message)
+    if (typeof parsed?.message === 'string' && parsed.message.length > 0) return parsed.message
+  } catch {
+    /* JSON 아님 — 백엔드가 만든 문구가 없는 케이스(네트워크 에러 등) */
+  }
+  return null
+}
+
 /** 파싱 응답의 시각은 "HH:mm" 평문 문자열(ApiLocalTime 객체 아님).
  *  재배포 후 백엔드가 원문 라벨(shiftType)과 별도로 자체 정규화 카테고리(mapped)+신뢰도(confidence)를
  *  같이 준다(실측 확인, 2026-08-19) — 프론트의 별칭 추정(guessShiftType)보다 이 값을 우선 신뢰한다. */

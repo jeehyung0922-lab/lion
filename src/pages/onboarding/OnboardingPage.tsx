@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { ScheduleDay, ShiftType } from '@/types'
 import {
   api,
+  asApiErrorMessage,
   asScheduleMissingTodayError,
   toApiTime,
   type ParseScheduleResponse,
@@ -204,8 +205,8 @@ export default function OnboardingPage() {
       setParsed({ shiftTypes, schedule })
       setRawParsed(null)
       setStep('aiResult')
-    } catch {
-      setStartDateError('시작일을 적용하지 못했어요. 다시 시도해주세요.')
+    } catch (e) {
+      setStartDateError(asApiErrorMessage(e) ?? '시작일을 적용하지 못했어요. 다시 시도해주세요.')
     } finally {
       setStartDateSubmitting(false)
     }
@@ -239,6 +240,17 @@ export default function OnboardingPage() {
           ]),
       )
       const shiftTypeDefaults: ShiftTypeDefaultDto[] = [...byShift.values()]
+      // 안전망: date가 중복되면 백엔드 유니크 제약(user_profile_id, date)에 막혀 500이 난다.
+      // 정상 플로우에선 안 생겨야 하지만(원인 불명 중복이 실측으로 관찰됨), 여기서 막아두면
+      // 최소한 저장은 되고, 콘솔 경고로 언제 어떤 날짜가 겹쳤는지 현장에서 바로 알 수 있다.
+      const byDate = new Map(schedule.map((d) => [d.date, d]))
+      if (byDate.size !== schedule.length) {
+        console.warn(
+          '[onboarding] schedule에 중복 날짜가 있어 마지막 값으로 정리했어요:',
+          schedule.length - byDate.size,
+          '건',
+        )
+      }
       await api.submitProfile({
         name: form.name,
         commuteMinutes: form.commuteMinutes,
@@ -250,7 +262,7 @@ export default function OnboardingPage() {
       })
       await api.submitSchedule({
         shiftTypeDefaults,
-        shifts: schedule.map((d) => ({
+        shifts: [...byDate.values()].map((d) => ({
           date: d.date,
           shiftType: d.shift as 'DAY' | 'EVENING' | 'NIGHT' | 'OFF',
         })),
@@ -259,9 +271,14 @@ export default function OnboardingPage() {
       localStorage.setItem('kinglion.onboarded', '1')
       navigate('/home', { replace: true, viewTransition: true })
     } catch (e) {
-      // 오늘이 빠진 근무표는 등록 자체가 거부된다 — 백엔드가 만든 문구를 그대로 보여준다
+      // 오늘이 빠진 근무표는 등록 자체가 거부된다 — 백엔드가 만든 문구를 그대로 보여준다.
+      // 그 외 에러(INVALID_SHIFT_TRANSITION, ShiftTypeDefault 누락 등)도 백엔드가 이미 정확한
+      // 이유를 message로 내려주므로, 뭉뚱그린 문구로 덮지 않고 그대로 노출한다 — 원인을 화면에서
+      // 바로 알아야 사용자가 근무표를 고쳐서 재시도할 수 있다.
       const missingToday = asScheduleMissingTodayError(e)
-      setSubmitError(missingToday?.message ?? '등록에 실패했어요. 잠시 후 다시 시도해주세요.')
+      setSubmitError(
+        missingToday?.message ?? asApiErrorMessage(e) ?? '등록에 실패했어요. 잠시 후 다시 시도해주세요.',
+      )
     } finally {
       setSubmitting(false)
     }

@@ -94,9 +94,26 @@ const SHIFT_TYPE_ALIASES: Record<string, ShiftType> = {
   휴무: 'OFF',
   휴일: 'OFF',
   휴: 'OFF',
+  '-': 'OFF',
+  '－': 'OFF',
+  '／': 'OFF',
+  '/': 'OFF',
+  '×': 'OFF',
+  오프: 'OFF',
+  비번: 'OFF',
+  연차: 'OFF',
 }
 
-/** AI가 돌려준 원문 라벨로 카테고리를 추정. 못 알아보면 'DAY'로 기본값(사용자가 화면에서 바로 보정 가능) */
+/**
+ * AI가 돌려준 원문 라벨로 카테고리를 추정. 못 알아보면 'OFF'로 기본값.
+ *
+ * 예전엔 'DAY'가 기본값이었는데, 실제로 원래 OFF였던 라벨(별칭 표에 없는 표기)이 DAY로
+ * 잘못 떨어지면 그 전날이 NIGHT일 때 백엔드가 하드로 금지하는 NIGHT→DAY 전환을 만들어내서
+ * 근무표 등록 자체가 통째로 실패하는 문제가 있었다(2026-08-20 실측). OFF를 기본값으로 두면
+ * 어떤 전후 조합이 와도 백엔드가 하드로 막는 전환이 없어서 이 버그 클래스 자체가 안 생긴다.
+ * 틀렸을 때도 "쉬는 날로 잘못 표시"가 "일하는 날로 잘못 표시"보다 사용자가 화면에서 알아채기
+ * 쉽고, 최종 확인은 어차피 사용자가 한다.
+ */
 export function guessShiftType(rawLabel: string): ShiftType {
-  return SHIFT_TYPE_ALIASES[rawLabel.trim()] ?? 'DAY'
+  return SHIFT_TYPE_ALIASES[rawLabel.trim()] ?? 'OFF'
 }

@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Send } from 'lucide-react'
-import { api, ApiError, fromApiTime, type TimelineSegment, type TodayRoutineView } from '@/lib/api'
+import {
+  api,
+  ApiError,
+  fromApiTime,
+  fromApiDateTime,
+  type TimelineSegment,
+  type TodayRoutineView,
+} from '@/lib/api'
 import { MoonGauge } from './MoonGauge'
 import { RoutineTable, type RoutineRowVM } from './RoutineTable'
 import { CheckInBadge, CheckInCard, useCheckinState } from './CheckInCard'
@@ -37,49 +44,28 @@ function toMinutes(hhmm: string): number {
   return h * 60 + m
 }
 
-function fmtMinutes(min: number): string {
-  const clamped = ((min % 1440) + 1440) % 1440
-  const h = Math.floor(clamped / 60)
-  const m = clamped % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-}
-
-/** 세그먼트 체인(각 seg.start === 이전 seg.end)을 "0일차 00:00부터 누적된 절대 분"으로 변환 */
-function toAbsoluteSegments(
-  timeline: TimelineSegment[],
-): { type: string; startAbs: number; endAbs: number }[] {
-  if (timeline.length === 0) return []
-  let cursor = toMinutes(fromApiTime(timeline[0].start))
-  const out: { type: string; startAbs: number; endAbs: number }[] = []
-  for (const seg of timeline) {
-    const start = toMinutes(fromApiTime(seg.start))
-    const end = toMinutes(fromApiTime(seg.end))
-    const dur = (end - start + 1440) % 1440 || 1440
-    out.push({ type: seg.type, startAbs: cursor, endAbs: cursor + dur })
-    cursor += dur
-  }
-  return out
-}
-
 /**
- * 절대분 세그먼트 체인을 표에 쓸 DaySegment로 그대로 매핑한다.
- * ⚠️ 예전엔 "오늘(24시간)" 구간으로 잘라서 보여줬지만, timeline은 백엔드가 이미 하루치로
- * 계산해서 내려주는 값이라 잘라낼 필요가 없다 — 받은 timeline을 그대로 다 보여준다.
+ * timeline[].start/end는 이제 날짜 포함 절대시각이라, 자정 넘김을 프론트가 추측할 필요가 없다
+ * (예전엔 "end < start면 다음날"로 보정했는데, 백엔드가 이미 올바른 날짜를 붙여서 내려주므로
+ * 그 보정을 그대로 두면 오히려 버그가 된다 — 첫 세그먼트 시작을 0분으로 두고 실제 시각 차이만 쓴다).
  */
-function daySlice(abs: { type: string; startAbs: number; endAbs: number }[]): DaySegment[] {
-  return abs.map((s) => ({
-    type: s.type,
-    start: fmtMinutes(s.startAbs),
-    end: fmtMinutes(s.endAbs),
-    startAbs: s.startAbs,
-    endAbs: s.endAbs,
+function toDaySegments(timeline: TimelineSegment[]): DaySegment[] {
+  if (timeline.length === 0) return []
+  const originMs = new Date(timeline[0].start).getTime()
+  return timeline.map((seg) => ({
+    type: seg.type,
+    start: fromApiDateTime(seg.start),
+    end: fromApiDateTime(seg.end),
+    startAbs: Math.round((new Date(seg.start).getTime() - originMs) / 60000),
+    endAbs: Math.round((new Date(seg.end).getTime() - originMs) / 60000),
   }))
 }
 
 /**
- * origin(첫 세그먼트 시작 시각, 0~1439분)을 기준으로 임의의 시각(clock, 0~1439분)을
+ * origin(첫 세그먼트 시작 시각의 clock, 0~1439분)을 기준으로 임의의 시각(clock, 0~1439분)을
  * 같은 좌표계의 절대분으로 접는다 — origin보다 이르면 다음날로 넘어간 것으로 본다.
- * "지금"과 카페인/식사 제한처럼 점 시각인 값 모두 이 좌표계로 옮겨야 대소 비교가 맞는다.
+ * "지금"과 카페인/식사 제한(mealConstraints, 여전히 날짜 없는 HH:mm:ss)처럼 점 시각인 값은
+ * 날짜 정보가 없어 이 추측이 여전히 필요하다 — timeline 세그먼트 자체는 절대시각이라 불필요.
  */
 function foldToOrigin(origin: number, clock: number): number {
   return clock >= origin ? clock : clock + 1440
@@ -259,9 +245,9 @@ export default function MainPage() {
   const anyCheckinCard =
     wakeCheckin === 'card' || (showClockoutCheckin && clockoutCheckin === 'card')
 
-  const absSegments = useMemo(() => (data ? toAbsoluteSegments(data.timeline) : []), [data])
-  const daySegs = useMemo(() => daySlice(absSegments), [absSegments])
-  const origin = absSegments[0]?.startAbs ?? 0
+  const daySegs = useMemo(() => (data ? toDaySegments(data.timeline) : []), [data])
+  const absSegments = daySegs
+  const origin = data?.timeline[0] ? toMinutes(fromApiDateTime(data.timeline[0].start)) : 0
 
   // 히어로 카운트다운 — 매초 갱신. 다른 화면에 초점이 가 있어도(background tab) 굳이 멈추지 않는다,
   // 매초 setState 하나라 비용이 무시할 만하다.

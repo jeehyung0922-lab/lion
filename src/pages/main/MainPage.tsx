@@ -62,13 +62,18 @@ function toDaySegments(timeline: TimelineSegment[]): DaySegment[] {
 }
 
 /**
- * origin(첫 세그먼트 시작 시각의 clock, 0~1439분)을 기준으로 임의의 시각(clock, 0~1439분)을
- * 같은 좌표계의 절대분으로 접는다 — origin보다 이르면 다음날로 넘어간 것으로 본다.
- * "지금"과 카페인/식사 제한(mealConstraints, 여전히 날짜 없는 HH:mm:ss)처럼 점 시각인 값은
- * 날짜 정보가 없어 이 추측이 여전히 필요하다 — timeline 세그먼트 자체는 절대시각이라 불필요.
+ * originClock(첫 세그먼트 시작 시각의 clock, 0~1439분)을 기준으로 임의의 시각(clock, 0~1439분)을
+ * daySegs와 같은 좌표계(첫 세그먼트 시작 = 0분부터 경과분)로 접는다 — originClock보다 이르면
+ * 다음날로 넘어간 것으로 보고 접은 뒤, originClock을 빼서 "경과분"으로 정규화한다.
+ * 카페인/식사 제한(mealConstraints, 여전히 날짜 없는 HH:mm:ss)처럼 날짜 정보가 없는 점 시각에만
+ * 이 추측이 필요하다 — timeline 세그먼트 자체는 절대시각이라 불필요(daySegs는 실제 Date 차이로 계산).
+ * ⚠️ 근무가 이틀 이상 반복되는 timeline에서도 카페인/식사 제한은 항상 "가장 가까운 다음 발생"
+ * 하나만 가리킨다고 가정한다(백엔드가 오늘 하루 기준으로만 계산해서 내려줌) — 반복 occurrence마다
+ * 따로 걸어주지 않는다.
  */
-function foldToOrigin(origin: number, clock: number): number {
-  return clock >= origin ? clock : clock + 1440
+function foldToOrigin(originClock: number, clock: number): number {
+  const folded = clock >= originClock ? clock : clock + 1440
+  return folded - originClock
 }
 
 type RowStatus = 'past' | 'current' | 'upcoming'
@@ -282,7 +287,10 @@ export default function MainPage() {
 
   const daySegs = useMemo(() => (data ? toDaySegments(data.timeline) : []), [data])
   const absSegments = daySegs
-  const origin = data?.timeline[0] ? toMinutes(fromApiDateTime(data.timeline[0].start)) : 0
+  // mealConstraints(카페인/식사 제한)는 여전히 날짜 없는 HH:mm:ss라, 그 값들을 daySegs와
+  // 같은 좌표계(첫 세그먼트 시작 = 0분)로 접으려면 첫 세그먼트의 clock이 필요하다.
+  const originClock = data?.timeline[0] ? toMinutes(fromApiDateTime(data.timeline[0].start)) : 0
+  const originDate = data?.timeline[0] ? new Date(data.timeline[0].start) : null
 
   // 히어로 카운트다운 — 매초 갱신. 다른 화면에 초점이 가 있어도(background tab) 굳이 멈추지 않는다,
   // 매초 setState 하나라 비용이 무시할 만하다.
@@ -291,7 +299,12 @@ export default function MainPage() {
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
-  const nowAbs = foldToOrigin(origin, now.getHours() * 60 + now.getMinutes())
+  /**
+   * ⚠️ "지금"의 clock(시:분)만 보고 원점 clock과의 선후로 접으면(foldToOrigin) 근무가 이틀치
+   * (예: 22:00~06:00 근무가 두 번) 내려온 경우 같은 clock이 반복돼서 몇 번째 반복인지 구분이
+   * 안 된다 — 그래서 daySegs와 같은 좌표계인 "원점 실제 시각과의 실제 경과분"으로 직접 계산한다.
+   */
+  const nowAbs = originDate ? Math.round((now.getTime() - originDate.getTime()) / 60000) : 0
   const heroTarget = findHeroTarget(absSegments, nowAbs)
   const remainingSeconds = heroTarget
     ? heroTarget.targetAbs * 60 - (nowAbs * 60 + now.getSeconds())
@@ -393,7 +406,7 @@ export default function MainPage() {
           <RoutineTable
             accent={theme.accent}
             dateLabel={data?.date ?? ''}
-            rows={data ? buildRows(daySegs, data, nowAbs, origin) : []}
+            rows={data ? buildRows(daySegs, data, nowAbs, originClock) : []}
           />
         </div>
 

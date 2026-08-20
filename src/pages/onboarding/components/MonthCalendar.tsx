@@ -14,6 +14,8 @@ interface MonthCalendarProps {
   /** 넘겨주면 월 화살표 바깥에 연 이동(≪ ≫)이 붙는다 — 옛날 근무표처럼 해를 건너뛸 때만 필요하다 */
   onPrevYear?: () => void
   onNextYear?: () => void
+  /** 넘겨주면 이 판정에 걸리는 날짜는 흐리게 표시되고 선택할 수 없다(예: 오늘 이후 날짜) */
+  isDisabled?: (dateKey: string) => boolean
 }
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -30,6 +32,7 @@ export function MonthCalendar({
   canNext = false,
   onPrevYear,
   onNextYear,
+  isDisabled,
 }: MonthCalendarProps) {
   const first = new Date(year, month - 1, 1)
   const daysInMonth = new Date(year, month, 0).getDate()
@@ -104,12 +107,14 @@ export function MonthCalendar({
           const key = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
           const cell = byDate.get(key)
           const dotColor = cell ? SHIFT_META[cell.shift].dotColor : 'transparent'
+          const disabled = isDisabled?.(key) ?? false
           return (
             <button
               key={i}
               type="button"
+              disabled={disabled}
               onClick={() => onSelectDay?.(cell ?? stubDay(key))}
-              className="flex flex-col items-center gap-1 rounded-lg py-1 transition-colors hover:bg-white/10"
+              className="flex flex-col items-center gap-1 rounded-lg py-1 transition-colors hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30"
             >
               <span
                 className={

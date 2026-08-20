@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { ScheduleDay, ShiftType } from '@/types'
-import { api, toApiTime, type ParseScheduleResponse, type ShiftTypeDefaultDto } from '@/lib/api'
+import {
+  api,
+  asScheduleMissingTodayError,
+  toApiTime,
+  type ParseScheduleResponse,
+  type ShiftTypeDefaultDto,
+} from '@/lib/api'
 import {
   DEFAULT_FORM,
   guessShiftType,
@@ -205,8 +211,10 @@ export default function OnboardingPage() {
       localStorage.setItem('kinglion.profile', JSON.stringify(form))
       localStorage.setItem('kinglion.onboarded', '1')
       navigate('/home', { replace: true, viewTransition: true })
-    } catch {
-      setSubmitError('등록에 실패했어요. 잠시 후 다시 시도해주세요.')
+    } catch (e) {
+      // 오늘이 빠진 근무표는 등록 자체가 거부된다 — 백엔드가 만든 문구를 그대로 보여준다
+      const missingToday = asScheduleMissingTodayError(e)
+      setSubmitError(missingToday?.message ?? '등록에 실패했어요. 잠시 후 다시 시도해주세요.')
     } finally {
       setSubmitting(false)
     }

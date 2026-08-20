@@ -137,6 +137,28 @@ export function asRowLabelError(e: unknown): RowLabelRequiredError | null {
   return null
 }
 
+/**
+ * 등록/시작일 이동 시 오늘이 근무표 범위 밖이면 오는 422. message는 백엔드가 만든 사용자용
+ * 문구(예: "오늘(2026-08-21)이 포함되지 않은 근무표는 등록할 수 없어요...")라 그대로 노출한다.
+ */
+export interface ScheduleMissingTodayError {
+  error: 'SCHEDULE_MISSING_TODAY'
+  message: string
+}
+
+/** ApiError가 SCHEDULE_MISSING_TODAY 케이스인지 확인하고 본문을 파싱해 반환 (아니면 null) */
+export function asScheduleMissingTodayError(e: unknown): ScheduleMissingTodayError | null {
+  if (!(e instanceof ApiError) || e.status !== 422) return null
+  try {
+    const parsed = JSON.parse(e.message)
+    if (parsed?.error === 'SCHEDULE_MISSING_TODAY' && typeof parsed.message === 'string')
+      return parsed
+  } catch {
+    /* JSON 아님 — SCHEDULE_MISSING_TODAY 케이스 아님 */
+  }
+  return null
+}
+
 /** 파싱 응답의 시각은 "HH:mm" 평문 문자열(ApiLocalTime 객체 아님).
  *  재배포 후 백엔드가 원문 라벨(shiftType)과 별도로 자체 정규화 카테고리(mapped)+신뢰도(confidence)를
  *  같이 준다(실측 확인, 2026-08-19) — 프론트의 별칭 추정(guessShiftType)보다 이 값을 우선 신뢰한다. */
@@ -326,6 +348,12 @@ export const api = {
   parseSchedule: (req: ParseScheduleApiRequest) =>
     post<ParseScheduleResponse>('/api/onboarding/schedule/parse', req),
   submitSchedule: (req: ScheduleRequest) => post<OkResponse>('/api/onboarding/schedule', req),
+  /** 요일 패턴은 유지한 채 시작일만 옮긴다 — 개별 날짜에 따로 고친 시각이 있으면 이 호출로 초기화됨 */
+  patchScheduleStartDate: (newStartDate: string) =>
+    request<OkResponse>('/api/onboarding/schedule/start-date', {
+      method: 'PATCH',
+      body: JSON.stringify({ newStartDate }),
+    }),
   submitProfile: async (req: ProfileRequest) => {
     const result = await post<ProfileResponse>('/api/onboarding/profile', req)
     localStorage.setItem(USER_ID_KEY, String(result.userId))

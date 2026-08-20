@@ -24,19 +24,11 @@ export function StartDateStep({ shiftCount, guessedStart, onConfirm, onBack }: S
   const [month, setMonth] = useState(guessedMonth)
   const [selected, setSelected] = useState<string | null>(guessedStart)
 
+  /** delta 개월 이동(연 이동은 ±12) — 해를 넘겨도 한 식으로 처리된다 */
   function shiftMonth(delta: number) {
-    let m = month + delta
-    let y = year
-    if (m > 12) {
-      m = 1
-      y += 1
-    }
-    if (m < 1) {
-      m = 12
-      y -= 1
-    }
-    setMonth(m)
-    setYear(y)
+    const total = year * 12 + (month - 1) + delta
+    setYear(Math.floor(total / 12))
+    setMonth((total % 12) + 1)
   }
 
   return (
@@ -68,6 +60,8 @@ export function StartDateStep({ shiftCount, guessedStart, onConfirm, onBack }: S
         onSelectDay={(d) => setSelected(d.date)}
         onPrev={() => shiftMonth(-1)}
         onNext={() => shiftMonth(1)}
+        onPrevYear={() => shiftMonth(-12)}
+        onNextYear={() => shiftMonth(12)}
         canPrev
         canNext
       />

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import type { ScheduleDay } from '@/types'
 import { SHIFT_META } from '../onboardingData'
 
@@ -11,6 +11,9 @@ interface MonthCalendarProps {
   onNext?: () => void
   canPrev?: boolean
   canNext?: boolean
+  /** 넘겨주면 월 화살표 바깥에 연 이동(≪ ≫)이 붙는다 — 옛날 근무표처럼 해를 건너뛸 때만 필요하다 */
+  onPrevYear?: () => void
+  onNextYear?: () => void
 }
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -25,6 +28,8 @@ export function MonthCalendar({
   onNext,
   canPrev = false,
   canNext = false,
+  onPrevYear,
+  onNextYear,
 }: MonthCalendarProps) {
   const first = new Date(year, month - 1, 1)
   const daysInMonth = new Date(year, month, 0).getDate()
@@ -43,8 +48,18 @@ export function MonthCalendar({
 
   return (
     <div className="rounded-2xl border border-white/10 bg-black/15 p-4 backdrop-blur-md">
-      {/* 월 타이틀 + 이동 화살표 */}
-      <div className="mb-3 flex items-center justify-center gap-4">
+      {/* 월 타이틀 + 이동 화살표(연 이동은 넘겨줬을 때만) */}
+      <div className="mb-3 flex items-center justify-center gap-3">
+        {onPrevYear && (
+          <button
+            type="button"
+            onClick={onPrevYear}
+            aria-label="이전 해"
+            className="flex size-6 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10"
+          >
+            <ChevronsLeft className="size-4" />
+          </button>
+        )}
         <button
           type="button"
           onClick={onPrev}
@@ -66,6 +81,16 @@ export function MonthCalendar({
         >
           <ChevronRight className="size-4" />
         </button>
+        {onNextYear && (
+          <button
+            type="button"
+            onClick={onNextYear}
+            aria-label="다음 해"
+            className="flex size-6 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10"
+          >
+            <ChevronsRight className="size-4" />
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-7 gap-y-1 text-center text-[11px] text-white/50">

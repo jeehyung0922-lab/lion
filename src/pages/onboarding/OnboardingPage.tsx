@@ -38,6 +38,10 @@ function daysBetween(a: string, b: string): number {
   const [by, bm, bd] = b.split('-').map(Number)
   return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86_400_000)
 }
+/** ai-server가 조립한 날짜 중 가장 이른 날 — 시작일 보정의 기준점(달력도 이 달에서 연다) */
+function guessedFirstDate(shifts: { date: string }[]): string {
+  return shifts.reduce((min, s) => (s.date < min ? s.date : min), shifts[0].date)
+}
 
 function loadForm(): OnboardingForm {
   const saved = localStorage.getItem('kinglion.profile')
@@ -145,8 +149,7 @@ export default function OnboardingPage() {
   /** 표의 첫 근무일이 실제로 며칠인지 받아, 지어낸 날짜 전체를 그 차이만큼 밀어서 확정한다 */
   function handleStartDateConfirm(startDate: string) {
     if (!rawParsed) return
-    const guessedFirst = [...rawParsed.shifts].sort((a, b) => a.date.localeCompare(b.date))[0].date
-    const offset = daysBetween(guessedFirst, startDate)
+    const offset = daysBetween(guessedFirstDate(rawParsed.shifts), startDate)
     const shiftedShifts = rawParsed.shifts.map((s) => ({ ...s, date: addDays(s.date, offset) }))
     const shiftTypes = toShiftTypeInfos(rawParsed.shiftTypes)
     const schedule = toScheduleDays(shiftedShifts, shiftTypes)
@@ -219,6 +222,7 @@ export default function OnboardingPage() {
         {step === 'startDate' && rawParsed && (
           <StartDateStep
             shiftCount={rawParsed.shifts.length}
+            guessedStart={guessedFirstDate(rawParsed.shifts)}
             onConfirm={handleStartDateConfirm}
             onBack={() => {
               setRawParsed(null)

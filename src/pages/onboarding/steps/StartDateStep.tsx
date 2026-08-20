@@ -6,20 +6,23 @@ import { MonthCalendar } from '../components/MonthCalendar'
 interface StartDateStepProps {
   /** 사진에서 읽은 근무 칸 수 — 월/연도를 못 읽었을 때 사용자에게 규모를 알려준다 */
   shiftCount: number
+  /** ai-server가 오늘 기준으로 조립한 첫 근무일(YYYY-MM-DD). 달력을 이 달에서 열고 미리 찍어둔다 */
+  guessedStart: string
   onConfirm: (startDate: string) => void
   onBack?: () => void
 }
 
 /**
- * 근무표에 월/연도가 아예 안 적혀 있어(요일만 있거나 헤더가 없음) ai-server가 날짜를 못 읽었을 때
+ * 근무표에서 연/월을 확정하지 못했을 때(연도가 안 적혀 있거나, 헤더에 일자·요일만 있을 때)
  * 끼워지는 화면. 칸마다 달력을 넘겨가며 고치는 대신, 표의 첫 근무일이 실제로 며칠인지 한 번만
  * 짚으면 나머지는 표에서 읽은 순서 그대로 밀려서 맞춰진다(OnboardingPage.handleStartDateConfirm).
  */
-export function StartDateStep({ shiftCount, onConfirm, onBack }: StartDateStepProps) {
-  const today = new Date()
-  const [year, setYear] = useState(today.getFullYear())
-  const [month, setMonth] = useState(today.getMonth() + 1)
-  const [selected, setSelected] = useState<string | null>(null)
+export function StartDateStep({ shiftCount, guessedStart, onConfirm, onBack }: StartDateStepProps) {
+  // 추측이 맞는 흔한 경우(이번 달/다음 달 근무표)엔 그대로 확인만 누르면 되게 미리 찍어둔다
+  const [guessedYear, guessedMonth] = guessedStart.split('-').map(Number)
+  const [year, setYear] = useState(guessedYear)
+  const [month, setMonth] = useState(guessedMonth)
+  const [selected, setSelected] = useState<string | null>(guessedStart)
 
   function shiftMonth(delta: number) {
     let m = month + delta
@@ -51,11 +54,11 @@ export function StartDateStep({ shiftCount, onConfirm, onBack }: StartDateStepPr
       }
     >
       <p className="mb-2 text-center text-[20px] leading-snug font-semibold tracking-[-0.03em] text-white">
-        표에 월/연도가 안 보여요
+        첫 근무일을 확인해주세요
       </p>
       <p className="mb-5 text-center text-[13px] leading-relaxed tracking-[-0.025em] text-white/70">
-        총 {shiftCount}일치 근무를 읽었어요.
-        <br />첫 번째 근무가 실제로 며칠인지 골라주세요.
+        총 {shiftCount}일치 근무를 읽었어요. 표에서 연/월을 확인할 수 없어
+        <br />첫 번째 근무가 실제로 며칠인지 짚어주세요.
       </p>
 
       <MonthCalendar
